@@ -60,6 +60,9 @@ plt.tight_layout()
 plt.savefig("1.pdf", bbox_inches="tight", pad_inches=0.1)
 #plt.show()
 
+#VOLTAJE
+V = 30
+
 #2a. Remover los picos
 def remover_picos(df, ax, titulo, Elim=15, V=31, thrd = 0.25, N=2):
     subset = df[df["voltaje_kV"] == V]
@@ -86,9 +89,9 @@ def remover_picos(df, ax, titulo, Elim=15, V=31, thrd = 0.25, N=2):
     return no_peaks
     
 fig, axes = plt.subplots(3, 1, figsize=(8, 8))
-no_peak_Rh = remover_picos(df_Rh, axes[0], "Rh", V=30)
-no_peak_Mo = remover_picos(df_Mo, axes[1], "Mo", V=30, thrd=0.2)
-no_peak_W = remover_picos(df_W,  axes[2], "W", V=30, Elim=5)
+no_peak_Rh = remover_picos(df_Rh, axes[0], "Rh", V=V)
+no_peak_Mo = remover_picos(df_Mo, axes[1], "Mo", V=V, thrd=0.2)
+no_peak_W = remover_picos(df_W,  axes[2], "W", V=V, Elim=5)
 
 plt.tight_layout()
 plt.savefig("2.a.pdf", bbox_inches="tight", pad_inches=0.1)
@@ -168,31 +171,6 @@ fwhm_W=fwhm(X_W,Y_spl_W)
 label_W=f"FWHM: {fwhm_W[2]:.2f} keV"
 maximos_W = maximos(X_W,Y_spl_W)    
 
-fig, axes = plt.subplots(3, 1, figsize=(8, 8))
-
-axes[0].plot(X_Rh, Y_spl_Rh, label="Interpolación Rh", color="red")
-axes[0].hlines(fwhm_Rh[1][0], fwhm_Rh[0][0], fwhm_Rh[0][1],
-               colors='blue', linestyles='dashed', label=label_Rh)
-axes[0].scatter(*maximos_Rh, color='black', zorder=5)
-axes[0].set_title("Rh")
-
-axes[1].plot(X_Mo, Y_spl_Mo, label="Interpolación Mo", color="blue")
-axes[1].hlines(fwhm_Mo[1][0], fwhm_Mo[0][0], fwhm_Mo[0][1],
-               colors='orange', linestyles='dashed', label=label_Mo)
-axes[1].scatter(*maximos_Mo, color='black', zorder=5)
-axes[1].set_title("Mo")
-
-axes[2].plot(X_W, Y_spl_W, label="Interpolación W", color="green")
-axes[2].hlines(fwhm_W[1][0], fwhm_W[0][0], fwhm_W[0][1],
-               colors='purple', linestyles='dashed', label=label_W)
-axes[2].scatter(*maximos_W, color='black', zorder=5)
-axes[2].set_title("W")
-
-for ax in axes:
-    ax.set_xlabel("Energía (keV)")
-    ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
-    ax.legend()
-
 def solo_colorbar(df, ax, cmap):
     voltajes = df["voltaje_kV"].unique()
     norm = mpl.colors.Normalize(vmin=min(voltajes), vmax=max(voltajes))
@@ -200,10 +178,42 @@ def solo_colorbar(df, ax, cmap):
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax)
     cbar.set_label("Voltaje (kV)")
+    
+    return norm
 
-solo_colorbar(df_Rh, axes[0], plt.cm.Reds)
-solo_colorbar(df_Mo, axes[1], plt.cm.Blues)
-solo_colorbar(df_W,  axes[2], plt.cm.Greens)
+fig, axes = plt.subplots(3, 1, figsize=(8, 8))
+
+for ax, coord in zip(axes, [maximos_Rh, maximos_Mo, maximos_W]):
+    ax.text(coord[0] + 0.5, coord[1] - 0.5,
+        f'({coord[0]:.2f}, {coord[1]:.2f})',
+        ha='left', va='bottom', fontsize=9)
+
+norm_Rh = solo_colorbar(df_Rh, axes[0], plt.cm.Reds)
+norm_Mo = solo_colorbar(df_Mo, axes[1], plt.cm.Blues)
+norm_W = solo_colorbar(df_W,  axes[2], plt.cm.Greens)
+
+axes[0].plot(X_Rh, Y_spl_Rh, label="Interpolación Rh", color=plt.cm.Reds(norm_Rh(V)))
+axes[0].hlines(fwhm_Rh[1][0], fwhm_Rh[0][0], fwhm_Rh[0][1],
+               colors='black', linestyles='dashed', label=label_Rh)
+axes[0].scatter(*maximos_Rh, label='Maximo', color='black', zorder=5)
+axes[0].set_title(f"Rh ({V}kV)")
+
+axes[1].plot(X_Mo, Y_spl_Mo, label="Interpolación Mo", color=plt.cm.Blues(norm_Mo(V)))
+axes[1].hlines(fwhm_Mo[1][0], fwhm_Mo[0][0], fwhm_Mo[0][1],
+               colors='black', linestyles='dashed', label=label_Mo)
+axes[1].scatter(*maximos_Mo, label='Maximo', color='black', zorder=5)
+axes[1].set_title(f"Mo ({V}kV)")
+
+axes[2].plot(X_W, Y_spl_W, label="Interpolación W", color=plt.cm.Greens(norm_W(V)))
+axes[2].hlines(fwhm_W[1][0], fwhm_W[0][0], fwhm_W[0][1],
+               colors='black', linestyles='dashed', label=label_W)
+axes[2].scatter(*maximos_W, label='Maximo', color='black', zorder=5)
+axes[2].set_title(f"W ({V}kV)")
+
+for ax in axes:
+    ax.set_xlabel("Energía (keV)")
+    ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
+    ax.legend()
 
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
