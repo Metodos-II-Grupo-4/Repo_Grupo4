@@ -183,11 +183,6 @@ def solo_colorbar(df, ax, cmap):
 
 fig, axes = plt.subplots(3, 1, figsize=(8, 8))
 
-for ax, coord in zip(axes, [maximos_Rh, maximos_Mo, maximos_W]):
-    ax.text(coord[0] + 0.5, coord[1] - 0.5,
-        f'({coord[0]:.2f}, {coord[1]:.2f})',
-        ha='left', va='bottom', fontsize=9)
-
 norm_Rh = solo_colorbar(df_Rh, axes[0], plt.cm.Reds)
 norm_Mo = solo_colorbar(df_Mo, axes[1], plt.cm.Blues)
 norm_W = solo_colorbar(df_W,  axes[2], plt.cm.Greens)
@@ -210,7 +205,11 @@ axes[2].hlines(fwhm_W[1][0], fwhm_W[0][0], fwhm_W[0][1],
 axes[2].scatter(*maximos_W, label='Maximo', color='black', zorder=5)
 axes[2].set_title(f"W ({V}kV)")
 
-for ax in axes:
+for ax, coord in zip(axes, [maximos_Rh, maximos_Mo, maximos_W]):
+    ax.text(coord[0] + 0.5, coord[1] - 0.5,
+        f'({coord[0]:.2f}, {coord[1]:.2f})',
+        ha='left', va='bottom', fontsize=9)
+
     ax.set_xlabel("Energía (keV)")
     ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
     ax.legend()
