@@ -58,7 +58,7 @@ graficar_con_colorbar(df_W,  axes[2], "W", plt.cm.Greens)
 
 plt.tight_layout()
 plt.savefig("1.pdf", bbox_inches="tight", pad_inches=0.1)
-#plt.show()
+plt.show()
 
 #VOLTAJE
 V = 30
@@ -95,7 +95,7 @@ no_peak_W = remover_picos(df_W,  axes[2], "W", V=V, Elim=5)
 
 plt.tight_layout()
 plt.savefig("2.a.pdf", bbox_inches="tight", pad_inches=0.1)
-#plt.show()
+plt.show()
 
 #2b
 def interpolacion(df, ax, title):
@@ -124,7 +124,7 @@ X_W,Y_W,Y_spl_W=interpolacion(no_peak_W, axes[2], "W")
 
 plt.tight_layout()
 plt.savefig("2.b.pdf", bbox_inches="tight", pad_inches=0.1)
-#plt.show()
+plt.show()
 
 #2c
 def maximos(x, y):    
@@ -216,6 +216,6 @@ for ax, coord in zip(axes, [maximos_Rh, maximos_Mo, maximos_W]):
 
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
-#plt.show()
+plt.show()
 
 
