@@ -32,7 +32,7 @@ def importar_datos(carpeta):
 df_Mo = importar_datos("Mo_unfiltered_10kV-50kV")
 df_Rh = importar_datos("Rh_unfiltered_10kV-50kV")
 df_W  = importar_datos("W_unfiltered_10kV-50kV")
-
+print(df_Mo)
 #1. Reconocimiento
 def graficar_con_colorbar(df, ax, titulo, cmap):
     voltajes = df["voltaje_kV"].unique()
@@ -158,64 +158,88 @@ def fwhm(x, y):
     fwhm_value = x[right_idx] - x[left_idx]
     
     return (x[left_idx], x[right_idx]),(half_max,half_max), fwhm_value
+#DESDE AQUÍ LA CORRECCIÓN
+maximos_Rh = []
+maximos_Mo = []
+maximos_W = []
 
-fwhm_Rh=fwhm(X_Rh,Y_spl_Rh)
-label_Rh=f"FWHM: {fwhm_Rh[2]:.2f} keV"
-maximos_Rh = maximos(X_Rh,Y_spl_Rh)
+maximosE_Rh = []
+maximosE_Mo = []
+maximosE_W = []
 
-fwhm_Mo=fwhm(X_Mo,Y_spl_Mo)
-label_Mo=f"FWHM: {fwhm_Mo[2]:.2f} keV"
-maximos_Mo = maximos(X_Mo,Y_spl_Mo)     
+fwhm_Rh = []
+fwhm_Mo = []
+fwhm_W = []
 
-fwhm_W=fwhm(X_W,Y_spl_W)
-label_W=f"FWHM: {fwhm_W[2]:.2f} keV"
-maximos_W = maximos(X_W,Y_spl_W)    
+Voltaje = []
 
-def solo_colorbar(df, ax, cmap):
-    voltajes = df["voltaje_kV"].unique()
-    norm = mpl.colors.Normalize(vmin=min(voltajes), vmax=max(voltajes))
-    sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
-    sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax)
-    cbar.set_label("Voltaje (kV)")
+for V in range(10, 51):
+    Voltaje.append(V)
     
-    return norm
+    subset_Mo = df_Mo[df_Mo["voltaje_kV"] == V]
+    spl = UnivariateSpline(subset_Mo["energy_keV"], subset_Mo["fluence"], s=1.5)
+    X = np.linspace(subset_Mo["energy_keV"].min(), subset_Mo["energy_keV"].max(), 200)
+    Y_spl = spl(X)
+    max_y, max_E = maximos(X, Y_spl)
+    maximos_Mo.append(max_y)
+    maximosE_Mo.append(max_E)
+    fwhm_Mo.append(fwhm(X, Y_spl)[2])
+    
+    subset_Rh = df_Rh[df_Rh["voltaje_kV"] == V]
+    spl = UnivariateSpline(subset_Rh["energy_keV"], subset_Rh["fluence"], s=1.5)
+    X = np.linspace(subset_Rh["energy_keV"].min(), subset_Rh["energy_keV"].max(), 200)
+    Y_spl = spl(X)
+    max_y, max_E = maximos(X, Y_spl)
+    maximos_Rh.append(max_y)
+    maximosE_Rh.append(max_E)
+    fwhm_Rh.append(fwhm(X, Y_spl)[2])
+    
+    subset_W = df_W[df_W["voltaje_kV"] == V]
+    spl = UnivariateSpline(subset_W["energy_keV"], subset_W["fluence"], s=1.5)
+    X = np.linspace(subset_W["energy_keV"].min(), subset_W["energy_keV"].max(), 200)
+    Y_spl = spl(X)
+    max_y, max_E = maximos(X, Y_spl)
+    maximos_W.append(max_y)
+    maximosE_W.append(max_E)
+    fwhm_W.append(fwhm(X, Y_spl)[2]) 
 
-fig, axes = plt.subplots(3, 1, figsize=(8, 8))
+fig, axes = plt.subplots(4, 1, figsize=(8, 8))
+#GRAFICAMOS MAXIMO CONTINUO EN FUNCION DE V
+axes[0].plot(Voltaje, maximos_Rh, label="Rh", color="blue")
+axes[0].plot(Voltaje, maximos_Mo, label="Mo", color="red")
+axes[0].plot(Voltaje, maximos_W, label="W", color="yellow")
+axes[0].set_title(f"Maximo continuo (Fluencia) en función de voltaje (V)")
+axes[0].set_xlabel("V (V)")
+axes[0].set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
+axes[0].legend()
 
-norm_Rh = solo_colorbar(df_Rh, axes[0], plt.cm.Reds)
-norm_Mo = solo_colorbar(df_Mo, axes[1], plt.cm.Blues)
-norm_W = solo_colorbar(df_W,  axes[2], plt.cm.Greens)
+#GRAFICAMOS ENERGÍA DEL MAXIMO EN FUNCION DE V
+axes[1].plot(Voltaje, maximosE_Rh, label="Rh", color="blue")
+axes[1].plot(Voltaje, maximosE_Mo, label="Mo", color="red")
+axes[1].plot(Voltaje, maximosE_W, label="W", color="yellow")
+axes[1].set_title(f"Energía del maximo continuo (E) en función de voltaje (V)")
+axes[1].set_xlabel("V (V)")
+axes[1].set_ylabel("E (keV)")
+axes[1].legend()
 
-axes[0].plot(X_Rh, Y_spl_Rh, label="Interpolación Rh", color=plt.cm.Reds(norm_Rh(V)))
-axes[0].hlines(fwhm_Rh[1][0], fwhm_Rh[0][0], fwhm_Rh[0][1],
-               colors='black', linestyles='dashed', label=label_Rh)
-axes[0].scatter(*maximos_Rh, label='Maximo', color='black', zorder=5)
-axes[0].set_title(f"Rh ({V}kV)")
+#GRAFICAMOS FWHM EN FUNCION DE V
+axes[2].plot(Voltaje, fwhm_Rh, label="Rh", color="blue")
+axes[2].plot(Voltaje, fwhm_Mo, label="Mo", color="red")
+axes[2].plot(Voltaje, fwhm_W, label="W", color="yellow")
+axes[2].set_title(f"FWHM en función de voltaje (V)")
+axes[2].set_xlabel("V (V)")
+axes[2].set_ylabel("FWHM (keV)")
+axes[2].legend()
 
-axes[1].plot(X_Mo, Y_spl_Mo, label="Interpolación Mo", color=plt.cm.Blues(norm_Mo(V)))
-axes[1].hlines(fwhm_Mo[1][0], fwhm_Mo[0][0], fwhm_Mo[0][1],
-               colors='black', linestyles='dashed', label=label_Mo)
-axes[1].scatter(*maximos_Mo, label='Maximo', color='black', zorder=5)
-axes[1].set_title(f"Mo ({V}kV)")
-
-axes[2].plot(X_W, Y_spl_W, label="Interpolación W", color=plt.cm.Greens(norm_W(V)))
-axes[2].hlines(fwhm_W[1][0], fwhm_W[0][0], fwhm_W[0][1],
-               colors='black', linestyles='dashed', label=label_W)
-axes[2].scatter(*maximos_W, label='Maximo', color='black', zorder=5)
-axes[2].set_title(f"W ({V}kV)")
-
-for ax, coord in zip(axes, [maximos_Rh, maximos_Mo, maximos_W]):
-    ax.text(coord[0] + 0.5, coord[1] - 0.5,
-        f'({coord[0]:.2f}, {coord[1]:.2f})',
-        ha='left', va='bottom', fontsize=9)
-
-    ax.set_xlabel("Energía (keV)")
-    ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
-    ax.legend()
+#GRAFICAMOS MAXIMO CON RESPECTO A ENERGIA DEL MAXIMO
+axes[3].plot(maximosE_Rh, maximos_Rh, label="Rh", color="blue")
+axes[3].plot(maximosE_Mo, maximos_Mo, label="Mo", color="red")
+axes[3].plot(maximosE_W, maximos_W, label="W", color="yellow")
+axes[3].set_title("Máximo (Fluencia) en función de energía del máximo (E)")
+axes[3].set_xlabel("E (keV)")
+axes[3].set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
+axes[3].legend()
 
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
 plt.show()
-
-
