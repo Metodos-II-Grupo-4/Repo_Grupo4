@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.interpolate import interp1d
 from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import RBFInterpolator
 
 #CARGAR DATOS
 
@@ -32,7 +33,6 @@ def importar_datos(carpeta):
 df_Mo = importar_datos("Mo_unfiltered_10kV-50kV")
 df_Rh = importar_datos("Rh_unfiltered_10kV-50kV")
 df_W  = importar_datos("W_unfiltered_10kV-50kV")
-print(df_Mo)
 #1. Reconocimiento
 def graficar_con_colorbar(df, ax, titulo, cmap):
     voltajes = df["voltaje_kV"].unique()
@@ -64,7 +64,7 @@ plt.show()
 V = 30
 
 #2a. Remover los picos
-def remover_picos(df, ax, titulo, Elim=15, V=31, thrd = 0.25, N=2):
+def remover_picos(df, ax, titulo, Elim=15, V=31, thrd = 0.25, N=2, plot=True):
     subset = df[df["voltaje_kV"] == V]
     subset_E = subset[subset["energy_keV"] >= Elim].reset_index()
     
@@ -77,14 +77,13 @@ def remover_picos(df, ax, titulo, Elim=15, V=31, thrd = 0.25, N=2):
     
     peak = subset_E.loc[sorted(indices), ["energy_keV", "fluence"]]
     no_peaks = subset[(~subset['energy_keV'].isin(peak['energy_keV'])) & (~subset['fluence'].isin(peak['fluence']))]
-    
-    ax.set_title(f'{titulo} (V = {V}kV)')
-    ax.set_xlabel("Energía (keV)")
-    ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
-    ax.plot(subset["energy_keV"], subset["fluence"], 'k-', marker='o', ms=3, label="Original")
-    ax.plot(no_peaks["energy_keV"], no_peaks["fluence"], 'b--', label="Sin picos")
-    ax.scatter(peak["energy_keV"], peak["fluence"], color="red", label="Eliminados", zorder=5)
-    ax.legend()
+    if plot:
+        ax.set_title(f'{titulo} (V = {V}kV)')
+        ax.set_xlabel("Energía (keV)")
+        ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
+        ax.plot(subset["energy_keV"], subset["fluence"], 'k-', marker='o', ms=3, label="Original")
+        ax.scatter(peak["energy_keV"], peak["fluence"], color="red", label="Eliminados", zorder=5)
+        ax.legend()
     
     return no_peaks
     
@@ -98,29 +97,27 @@ plt.savefig("2.a.pdf", bbox_inches="tight", pad_inches=0.1)
 plt.show()
 
 #2b
-def interpolacion(df, ax, title):
-    spl = UnivariateSpline(df["energy_keV"], df["fluence"], s=1.5)
-    f_interp = interp1d(df["energy_keV"], df["fluence"], kind='cubic')
-    
-    X = np.linspace(df["energy_keV"].min(), df["energy_keV"].max(), 200)
-    Y = f_interp(X)
-    Y_spl = spl(X)
-    
-    ax.set_title(f'Interpolación {title}')
-    ax.set_xlabel("Energía (keV)")
-    ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
-    ax.scatter(df["energy_keV"], df["fluence"], color="red", s=6, label="Datos originales")
-    ax.plot(X, Y, label="Interpolación cúbica", color="green")
-    ax.plot(X, Y_spl, 'b--', label="Ajuste suavizado")
-    ax.legend()
+def interpolacion(df, ax, title, plot=True):
+    X = df["energy_keV"].to_numpy().reshape(-1, 1)
+    Y = df["fluence"]
+    rbf = RBFInterpolator(X, Y, smoothing=20)
+    X_correcto = np.linspace(X.min(), X.max(), 500).reshape(-1, 1)
+    Y_correcto = rbf(X_correcto)
+    if plot:
+        ax.set_title(f'Interpolación {title}')
+        ax.set_xlabel("Energía (keV)")
+        ax.set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
+        ax.scatter(df["energy_keV"], df["fluence"], color="red", s=6, label="Datos originales")
+        ax.plot(X_correcto, Y_correcto, 'b--', label="Ajuste suavizado")
+        ax.legend()
 
-    return(X, Y, Y_spl)
+    return X_correcto, Y_correcto
 
 fig, axes = plt.subplots(3, 1, figsize=(8, 8))
 
-X_Rh,Y_Rh,Y_spl_Rh=interpolacion(no_peak_Rh, axes[0], "Rh")
-X_Mo,Y_Mo,Y_spl_Mo=interpolacion(no_peak_Mo, axes[1], "Mo")
-X_W,Y_W,Y_spl_W=interpolacion(no_peak_W, axes[2], "W")
+X_Rh, Y_Rh = interpolacion(no_peak_Rh, axes[0], "Rh")
+X_Mo, Y_Mo = interpolacion(no_peak_Mo, axes[1], "Mo")
+X_W, Y_W = interpolacion(no_peak_W, axes[2], "W")
 
 plt.tight_layout()
 plt.savefig("2.b.pdf", bbox_inches="tight", pad_inches=0.1)
@@ -157,88 +154,76 @@ def fwhm(x, y):
 
     fwhm_value = x[right_idx] - x[left_idx]
     
-    return (x[left_idx], x[right_idx]),(half_max,half_max), fwhm_value
-#DESDE AQUÍ LA CORRECCIÓN
-maximos_Rh = []
-maximos_Mo = []
-maximos_W = []
+    return fwhm_value
 
-maximosE_Rh = []
-maximosE_Mo = []
-maximosE_W = []
+#2c
 
-fwhm_Rh = []
-fwhm_Mo = []
-fwhm_W = []
+#Se crean listas vacías para cada elemento
+voltajes_Rh, max_val_Rh, max_ener_Rh, fwhm_Rh = [], [], [], []
+voltajes_Mo, max_val_Mo, max_ener_Mo, fwhm_Mo = [], [], [], []
+voltajes_W,  max_val_W,  max_ener_W,  fwhm_W  = [], [], [], []
 
-Voltaje = []
-
-for V in range(10, 51):
-    Voltaje.append(V)
+#Función para procesar un elemento
+def analizar_elemento(df, thrd, Elim, voltajes_lista, max_val_lista, max_ener_lista, fwhm_lista):
     
-    subset_Mo = df_Mo[df_Mo["voltaje_kV"] == V]
-    spl = UnivariateSpline(subset_Mo["energy_keV"], subset_Mo["fluence"], s=1.5)
-    X = np.linspace(subset_Mo["energy_keV"].min(), subset_Mo["energy_keV"].max(), 200)
-    Y_spl = spl(X)
-    max_y, max_E = maximos(X, Y_spl)
-    maximos_Mo.append(max_y)
-    maximosE_Mo.append(max_E)
-    fwhm_Mo.append(fwhm(X, Y_spl)[2])
+    voltajes_unicos = sorted(df["voltaje_kV"].unique())
     
-    subset_Rh = df_Rh[df_Rh["voltaje_kV"] == V]
-    spl = UnivariateSpline(subset_Rh["energy_keV"], subset_Rh["fluence"], s=1.5)
-    X = np.linspace(subset_Rh["energy_keV"].min(), subset_Rh["energy_keV"].max(), 200)
-    Y_spl = spl(X)
-    max_y, max_E = maximos(X, Y_spl)
-    maximos_Rh.append(max_y)
-    maximosE_Rh.append(max_E)
-    fwhm_Rh.append(fwhm(X, Y_spl)[2])
-    
-    subset_W = df_W[df_W["voltaje_kV"] == V]
-    spl = UnivariateSpline(subset_W["energy_keV"], subset_W["fluence"], s=1.5)
-    X = np.linspace(subset_W["energy_keV"].min(), subset_W["energy_keV"].max(), 200)
-    Y_spl = spl(X)
-    max_y, max_E = maximos(X, Y_spl)
-    maximos_W.append(max_y)
-    maximosE_W.append(max_E)
-    fwhm_W.append(fwhm(X, Y_spl)[2]) 
+    for V in voltajes_unicos:
+        
+        # Remover picos
+        no_peaks = remover_picos(df, plt.gca(), "", V=V, thrd=thrd, Elim=Elim, plot=False)  # sin título
+        # Interpolación del continuo
+        X_corr, Y_corr = interpolacion(no_peaks, plt.gca(), "", plot=False)  # sin título
+        X_corr = X_corr.flatten()
 
-fig, axes = plt.subplots(4, 1, figsize=(8, 8))
-#GRAFICAMOS MAXIMO CONTINUO EN FUNCION DE V
-axes[0].plot(Voltaje, maximos_Rh, label="Rh", color="blue")
-axes[0].plot(Voltaje, maximos_Mo, label="Mo", color="red")
-axes[0].plot(Voltaje, maximos_W, label="W", color="yellow")
-axes[0].set_title(f"Maximo continuo (Fluencia) en función de voltaje (V)")
-axes[0].set_xlabel("V (V)")
-axes[0].set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
-axes[0].legend()
+        # Calcular máximo y energía del máximo
+        ener_max, val_max = maximos(X_corr, Y_corr)
+        # Calcular FWHM
+        ancho_fwhm = fwhm(X_corr, Y_corr)
 
-#GRAFICAMOS ENERGÍA DEL MAXIMO EN FUNCION DE V
-axes[1].plot(Voltaje, maximosE_Rh, label="Rh", color="blue")
-axes[1].plot(Voltaje, maximosE_Mo, label="Mo", color="red")
-axes[1].plot(Voltaje, maximosE_W, label="W", color="yellow")
-axes[1].set_title(f"Energía del maximo continuo (E) en función de voltaje (V)")
-axes[1].set_xlabel("V (V)")
-axes[1].set_ylabel("E (keV)")
-axes[1].legend()
+        # Guardar resultados
+        voltajes_lista.append(V)
+        max_val_lista.append(val_max)
+        max_ener_lista.append(ener_max)
+        fwhm_lista.append(ancho_fwhm)
 
-#GRAFICAMOS FWHM EN FUNCION DE V
-axes[2].plot(Voltaje, fwhm_Rh, label="Rh", color="blue")
-axes[2].plot(Voltaje, fwhm_Mo, label="Mo", color="red")
-axes[2].plot(Voltaje, fwhm_W, label="W", color="yellow")
-axes[2].set_title(f"FWHM en función de voltaje (V)")
-axes[2].set_xlabel("V (V)")
-axes[2].set_ylabel("FWHM (keV)")
-axes[2].legend()
+#Usar la función en los dataframes ORIGINALES
+analizar_elemento(df_Rh, 0.25, 15, voltajes_Rh, max_val_Rh, max_ener_Rh, fwhm_Rh)
+analizar_elemento(df_Mo, 0.20, 15, voltajes_Mo, max_val_Mo, max_ener_Mo, fwhm_Mo)
+analizar_elemento(df_W,  0.25, 5,  voltajes_W,  max_val_W, max_ener_W,  fwhm_W)
+fig, axs = plt.subplots(2, 2, figsize=(10, 8))
 
-#GRAFICAMOS MAXIMO CON RESPECTO A ENERGIA DEL MAXIMO
-axes[3].plot(maximosE_Rh, maximos_Rh, label="Rh", color="blue")
-axes[3].plot(maximosE_Mo, maximos_Mo, label="Mo", color="red")
-axes[3].plot(maximosE_W, maximos_W, label="W", color="yellow")
-axes[3].set_title("Máximo (Fluencia) en función de energía del máximo (E)")
-axes[3].set_xlabel("E (keV)")
-axes[3].set_ylabel(r"Fluencia  keV$^{-1}$ cm$^{-2}$")
-axes[3].legend()
+#Máximo vs voltaje
+axs[0,0].plot(voltajes_Rh, max_val_Rh, label="Rh")
+axs[0,0].plot(voltajes_Mo, max_val_Mo, label="Mo")
+axs[0,0].plot(voltajes_W,  max_val_W, label="W")
+axs[0,0].set_xlabel("Voltaje (kV)")
+axs[0,0].set_ylabel("Máximo continuo")
+axs[0,0].legend()
+
+#Energía del máximo vs voltaje
+axs[0,1].plot(voltajes_Rh, max_ener_Rh, label="Rh")
+axs[0,1].plot(voltajes_Mo, max_ener_Mo, label="Mo")
+axs[0,1].plot(voltajes_W,  max_ener_W, label="W")
+axs[0,1].set_xlabel("Voltaje (kV)")
+axs[0,1].set_ylabel("Energía del máximo (keV)")
+axs[0,1].legend()
+
+#FWHM vs voltaje
+axs[1,0].plot(voltajes_Rh, fwhm_Rh, label="Rh")
+axs[1,0].plot(voltajes_Mo, fwhm_Mo, label="Mo")
+axs[1,0].plot(voltajes_W,  fwhm_W, label="W")
+axs[1,0].set_xlabel("Voltaje (kV)")
+axs[1,0].set_ylabel("FWHM (keV)")
+axs[1,0].legend()
+
+#Máximo vs energía del máximo
+axs[1,1].plot(max_ener_Rh, max_val_Rh, label="Rh")
+axs[1,1].plot(max_ener_Mo, max_val_Mo, label="Mo")
+axs[1,1].plot(max_ener_W,  max_val_W, label="W")
+axs[1,1].set_xlabel("Energía del máximo (keV)")
+axs[1,1].set_ylabel("Máximo continuo")
+axs[1,1].legend()
 
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
