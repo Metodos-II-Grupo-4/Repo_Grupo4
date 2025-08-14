@@ -301,3 +301,98 @@ plot_picos_por_elemento(picos_W,  titulo="Picos aislados W",  ax=axes[2])
 plt.tight_layout()
 plt.savefig("3.a.pdf", bbox_inches="tight", pad_inches=0.1)
 plt.show()
+
+
+#3b
+
+from scipy.optimize import curve_fit
+
+def gauss(x, A, mu, sigma):
+    return A * np.exp(-(x - mu)**2 / (2 * sigma**2))
+
+
+def AjustePicos(df, ancho=20, altura_min=0.05):
+    voltajes_unicos = df["voltaje_kV"].unique()  
+    V_ancho = []
+    V_amplitud = []
+
+    for V in voltajes_unicos:
+        # Filto voltaje
+        mask = df["voltaje_kV"] == V
+        Xv = df.loc[mask, "energy_keV"].to_numpy()
+        Yv = df.loc[mask, "fluence"].to_numpy()
+        #Agarra solamente los valores que tengan true de voltaje tanto en energy como en fluence
+        #df.loc busca en el dataframe por valores, no por indices
+
+        if len(Xv) == 0:
+            V_ancho.append(np.nan)
+            V_amplitud.append(np.nan)
+            continue
+        peaks, _ = find_peaks(Yv, height=np.max(Yv)*altura_min)
+
+        if len(peaks) == 0:
+            V_ancho.append(np.nan)
+            V_amplitud.append(np.nan)
+            continue
+
+
+        pk = peaks[np.argmax(Yv[peaks])]
+        i0 = max(0, pk - ancho)
+        i1 = min(len(Xv), pk + ancho)
+        Xn = Xv[i0:i1]
+        Yn = Yv[i0:i1]
+        # Lo que se hace aqui es filtrar cada "espectro", ya que la energía se va repitiendo cada que un espectro se acaba e inicia otro
+
+        A0 = np.max(Yn)
+        mu0 = Xn[np.argmax(Yn)] # Esto es el Xn en donde esta la altura maxima
+        sigma0 = (Xn[-1] - Xn[0]) / 6 
+        # Tomamos el ultimo valor menos el inicio, que abarcaría todo el ancho, que son 6 sigmas, por eso dividimos por 6
+
+        try:
+            popt, _ = curve_fit(gauss, Xn, Yn, p0=[A0, mu0, sigma0])
+            V_ancho.append(popt[2])
+            V_amplitud.append(popt[0])
+        except RuntimeError: # Uso esto para cuando el ajuste no se pueda realizar satisfactoriamente, en vez de que se rompa colocamos nan
+            V_ancho.append(np.nan)
+            V_amplitud.append(np.nan)
+
+    return voltajes_unicos, np.array(V_ancho), np.array(V_amplitud)
+
+
+volt_mo, V_ancho_mo, V_amplitud_mo = AjustePicos(picos_Mo)
+volt_rh, V_ancho_rh, V_amplitud_rh = AjustePicos(picos_Rh)
+volt_w,  V_ancho_w,  V_amplitud_w  = AjustePicos(picos_W)
+
+
+fig, axes = plt.subplots(2, 3, figsize=(12, 6), sharex=False)
+axes = axes.ravel() #Esto es para simplificar los axes en numeracion
+axes[0].plot(volt_mo, V_ancho_mo, 'o-', label="Mo", color="red")
+axes[1].plot(volt_rh, V_ancho_rh, '--', label="Rh", color="blue")
+axes[2].plot(volt_w,  V_ancho_w,  label="W", color="green")
+axes[0].set_ylabel("Ancho (σ)")
+axes[1].set_ylabel("Ancho (σ)")
+axes[2].set_ylabel("Ancho (σ)")
+axes[0].legend()
+axes[1].legend()
+axes[2].legend()
+
+
+axes[3].plot(volt_mo, V_amplitud_mo, 'o-', label="Mo", color="orange")
+axes[4].plot(volt_rh, V_amplitud_rh, '--', label="Rh", color="purple")
+axes[5].plot(volt_w,  V_amplitud_w,  label="W", color="yellow")
+axes[3].set_ylabel("Amplitud (A)")
+axes[4].set_ylabel("Amplitud (A)")
+axes[5].set_ylabel("Amplitud (A)")
+axes[3].legend()
+axes[4].legend()
+axes[5].legend()
+for ax in axes:
+    ax.set_xlabel("Voltaje (kV)")
+    ax.grid(True)
+
+plt.tight_layout()
+plt.show()
+
+
+
+
