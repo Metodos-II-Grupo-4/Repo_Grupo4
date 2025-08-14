@@ -4,8 +4,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from scipy.interpolate import interp1d
-from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import RBFInterpolator
 
 #CARGAR DATOS
