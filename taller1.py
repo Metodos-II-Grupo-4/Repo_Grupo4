@@ -269,21 +269,12 @@ def aislar_picos(df, Elim, thrd, N, smooth_window=11, smooth_poly=3,min_prominen
         picos_df = picos_df.sort_values('energy_keV').reset_index(drop=True)
         todos_picos.append(picos_df)
 
-        for p in peaks:
-            centros.append({
-                'voltaje_kV': v,
-                'peak_index': int(p),
-                'energy_keV': float(subset.loc[p, 'energy_keV']),
-                'fluence': float(subset.loc[p, 'fluence']),
-                'fluence_suav': float(y_s[p]),
-                'prominence': float(props['prominences'][np.where(peaks==p)[0][0]]) if 'prominences' in props else np.nan
-            })
-
     df_picos = pd.concat(todos_picos, ignore_index=True)
     df_picos = df_picos.drop_duplicates(subset=['energy_keV','voltaje_kV'])
     #print(f"Encontrados {len(df_picos)} puntos de picos aislados.")
-    df_centros = pd.DataFrame(centros)
-    return df_picos, df_centros
+
+    return df_picos
+
 
 def plot_picos_por_elemento(df_picos, titulo="Picos aislados", ax=None, markersize=4):
     if ax is None:
@@ -299,9 +290,9 @@ def plot_picos_por_elemento(df_picos, titulo="Picos aislados", ax=None, markersi
     ax.set_ylabel("fluence")
     return ax
 
-picos_Rh, centros_Rh = aislar_picos(df_Rh, 12, thrd=0.25, N=2, min_distance=5)
-picos_Mo, centros_Mo = aislar_picos(df_Mo, 15, thrd=0.25, N=2)
-picos_W,  centros_W  = aislar_picos(df_W,  Elim=9.2, thrd=0.25, N=10, smooth_window=12,min_distance = 2)
+picos_Rh = aislar_picos(df_Rh, 12, thrd=0.25, N=2, min_distance=5)
+picos_Mo= aislar_picos(df_Mo, 15, thrd=0.25, N=2)
+picos_W = aislar_picos(df_W,  Elim=9.2, thrd=0.25, N=10, smooth_window=12,min_distance = 2)
 
 fig, axes = plt.subplots(1, 3, figsize=(16,5))
 plot_picos_por_elemento(picos_Mo, titulo="Picos aislados Mo", ax=axes[0])
