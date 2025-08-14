@@ -38,7 +38,7 @@ def graficar_con_colorbar(df, ax, titulo, cmap):
     voltajes = df["voltaje_kV"].unique()
     norm = mpl.colors.Normalize(vmin=min(voltajes), vmax=max(voltajes))
     
-    for v in voltajes:
+    for v in voltajes[::5]:
         subset = df[df["voltaje_kV"] == v]
         ax.plot(subset["energy_keV"], subset["fluence"], color=cmap(norm(v)))
     
@@ -52,9 +52,9 @@ def graficar_con_colorbar(df, ax, titulo, cmap):
     cbar.set_label("Voltaje (kV)")
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-graficar_con_colorbar(df_Rh, axes[0], "Rh", plt.cm.Reds)
-graficar_con_colorbar(df_Mo, axes[1], "Mo", plt.cm.Blues)
-graficar_con_colorbar(df_W,  axes[2], "W", plt.cm.Greens)
+graficar_con_colorbar(df_Rh, axes[0], "Rh", plt.cm.viridis)
+graficar_con_colorbar(df_Mo, axes[1], "Mo", plt.cm.viridis)
+graficar_con_colorbar(df_W,  axes[2], "W", plt.cm.viridis)
 
 plt.tight_layout()
 plt.savefig("1.pdf", bbox_inches="tight", pad_inches=0.1)
@@ -227,8 +227,4 @@ axs[1,1].legend()
 
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
-<<<<<<< HEAD
 plt.show()
-=======
-#plt.show()
->>>>>>> 289878b (.)
