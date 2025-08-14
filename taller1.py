@@ -227,4 +227,8 @@ axs[1,1].legend()
 
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
+<<<<<<< HEAD
 plt.show()
+=======
+#plt.show()
+>>>>>>> 289878b (.)
