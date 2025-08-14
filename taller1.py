@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy.signal import savgol_filter
 from scipy.interpolate import RBFInterpolator
 
 #CARGAR DATOS
