@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from scipy import integrate
 from scipy.signal import savgol_filter
 from scipy.interpolate import RBFInterpolator
 
@@ -393,6 +394,39 @@ for ax in axes:
 plt.tight_layout()
 plt.show()
 
+#4
+def porcentaje_picos(df, picos_df):
+    resultados = []
+    voltajes = sorted(df['voltaje_kV'].unique())
+    for V in voltajes:
+        sub_total = df[df['voltaje_kV'] == V]
+        sub_picos = picos_df[picos_df['voltaje_kV'] == V]
+        area_total = integrate.trapezoid(sub_total['fluence'], sub_total['energy_keV'])
+        area_picos = integrate.trapezoid(sub_picos['fluence'], sub_picos['energy_keV'])
+        porcentaje = (area_picos / area_total) * 100
+        resultados.append((V, porcentaje))
+    return np.array(resultados)
+res_Mo = porcentaje_picos(df_Mo, picos_Mo)
+res_Rh = porcentaje_picos(df_Rh, picos_Rh)
+res_W  = porcentaje_picos(df_W,  picos_W)
 
+fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(11,5))
+
+ax[0].plot(res_Mo[:,0], res_Mo[:,1], 'o-',label="Mo")
+ax[0].set_xlabel("Voltaje (kV)")
+ax[0].set_ylabel("Porcentaje de áreas")
+ax[0].set_title("Mo")
+
+ax[1].plot(res_Rh[:,0], res_Rh[:,1], 'o-',label="Rh")
+ax[1].set_xlabel("Voltaje (kV)")
+ax[1].set_ylabel("Porcentaje de áreas")
+ax[1].set_title("Rh")
+
+ax[2].plot(res_W[:,0], res_W[:,1],'o-', label="W")
+ax[2].set_xlabel("Voltaje (kV)")
+ax[2].set_ylabel("Porcentaje de áreas")
+ax[2].set_title("W")
+plt.savefig("4.pdf", bbox_inches="tight")
+plt.show()
 
 
