@@ -228,3 +228,86 @@ axs[1,1].legend()
 plt.tight_layout()
 plt.savefig("2.c.pdf", bbox_inches="tight", pad_inches=0.1)
 plt.show()
+#3a
+def aislar_picos(df, Elim, thrd, N, smooth_window=11, smooth_poly=3,min_prominence=None, min_distance=5):
+    voltajes = sorted(df['voltaje_kV'].dropna().unique())
+    todos_picos = []
+    centros = []  
+
+    for v in voltajes:
+        subset = df[(df['voltaje_kV'] == v) & (df['energy_keV'] >= Elim)].copy()
+        subset = subset.sort_values('energy_keV').reset_index(drop=True)
+        y = subset['fluence'].values
+
+        win = int(smooth_window)
+        if win >= len(y):
+            win = len(y) - 1 if (len(y) - 1) % 2 == 1 else len(y) - 2
+        if win < 3:
+            y_s = y.copy()
+        else:
+            if win % 2 == 0:
+                win += 1
+            y_s = savgol_filter(y, window_length=win, polyorder=min(smooth_poly, win-1))
+
+        baseline = np.percentile(y_s, 25)
+        peak_amp = y_s.max() - baseline
+
+        height_threshold = baseline + thrd * peak_amp
+
+        prom = min_prominence if (min_prominence is not None) else max(peak_amp * 0.05, 1e-6)
+
+        peaks, props = find_peaks(y_s, height=height_threshold, prominence=prom, distance=min_distance)
+      
+        indices = set()
+        for p in peaks:
+            start = max(0, p - N)
+            end = min(len(subset) - 1, p + N)
+            indices.update(range(start, end + 1))
+
+        indices_sorted = sorted(indices)
+        picos_df = subset.loc[indices_sorted, ['energy_keV', 'fluence']].copy()
+        picos_df['voltaje_kV'] = v
+        picos_df = picos_df.sort_values('energy_keV').reset_index(drop=True)
+        todos_picos.append(picos_df)
+
+        for p in peaks:
+            centros.append({
+                'voltaje_kV': v,
+                'peak_index': int(p),
+                'energy_keV': float(subset.loc[p, 'energy_keV']),
+                'fluence': float(subset.loc[p, 'fluence']),
+                'fluence_suav': float(y_s[p]),
+                'prominence': float(props['prominences'][np.where(peaks==p)[0][0]]) if 'prominences' in props else np.nan
+            })
+
+    df_picos = pd.concat(todos_picos, ignore_index=True)
+    df_picos = df_picos.drop_duplicates(subset=['energy_keV','voltaje_kV'])
+    #print(f"Encontrados {len(df_picos)} puntos de picos aislados.")
+    df_centros = pd.DataFrame(centros)
+    return df_picos, df_centros
+
+def plot_picos_por_elemento(df_picos, titulo="Picos aislados", ax=None, markersize=4):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8,5))
+    voltajes = sorted(df_picos['voltaje_kV'].unique())
+    cmap = plt.get_cmap('viridis')
+    for i,v in enumerate(voltajes):
+        sub = df_picos[df_picos['voltaje_kV']==v].sort_values('energy_keV')
+        ax.plot(sub['energy_keV'], sub['fluence'], linestyle='-', markersize=markersize,
+                label=f"{v} kV", alpha=0.9)
+    ax.set_title(titulo)
+    ax.set_xlabel("energy_keV")
+    ax.set_ylabel("fluence")
+    return ax
+
+picos_Rh, centros_Rh = aislar_picos(df_Rh, 12, thrd=0.25, N=2, min_distance=5)
+picos_Mo, centros_Mo = aislar_picos(df_Mo, 15, thrd=0.25, N=2)
+picos_W,  centros_W  = aislar_picos(df_W,  Elim=9.2, thrd=0.25, N=10, smooth_window=12,min_distance = 2)
+
+fig, axes = plt.subplots(1, 3, figsize=(16,5))
+plot_picos_por_elemento(picos_Mo, titulo="Picos aislados Mo", ax=axes[0])
+plot_picos_por_elemento(picos_Rh, titulo="Picos aislados Rh", ax=axes[1])
+plot_picos_por_elemento(picos_W,  titulo="Picos aislados W",  ax=axes[2])
+plt.tight_layout()
+plt.savefig("3.a.pdf", bbox_inches="tight", pad_inches=0.1)
+plt.show()
