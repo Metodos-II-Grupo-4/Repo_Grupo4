@@ -7,6 +7,8 @@ import matplotlib.lines as mlines
 from matplotlib.colors import LogNorm
 from scipy import ndimage as ndi
 from PIL import Image
+import pandas as pd
+from astropy.timeseries import LombScargle
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -138,3 +140,36 @@ ax3.legend(handles=[original_line, filtered_line], loc='upper right', framealpha
 plt.tight_layout(pad=1.5)
 #plt.savefig("grafica_tomografia.png", dpi=300, bbox_inches="tight")
 plt.close()
+
+#4 Punto
+df = pd.read_csv(r"OGLE-LMC-CEP-0001.dat", 
+                 sep=" ", header=None, names=["tiempo", "brillo", "error"])
+
+time = df["tiempo"].to_numpy()
+brightness = df["brillo"].to_numpy()
+
+frequency, power = LombScargle(time, brightness).autopower(
+    minimum_frequency=0.01,maximum_frequency=2,samples_per_peak=len(time))
+
+best_freq = frequency[np.argmax(power)] #esto es por el pico en el espacio de frecuencias, queremos la frecuencia que tiene ese pico
+best_period = 1 / best_freq
+ϕ = np.mod(best_freq * time, 1)
+
+plt.figure(figsize=(6,4))
+plt.plot(frequency, power, color="black")
+plt.xlabel("Frecuencia [ciclos/día]")
+plt.ylabel("Potencia")
+plt.title("Espacio de frecuencias")
+plt.grid(True)
+plt.show()
+print(best_freq)
+print(best_period)
+
+plt.figure(figsize=(6,4))
+plt.scatter(ϕ , brightness, s=10,marker = "D", color="black")
+plt.xlabel("Fase")
+plt.ylabel("Brillo")
+plt.title("Brillo vs fase")
+plt.grid(True)
+plt.savefig("4.pdf")
+plt.show()
