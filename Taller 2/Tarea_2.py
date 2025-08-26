@@ -31,11 +31,11 @@ señal = generate_data(1, 0.001, 1, 50, 0.5)
 t_data, y_data = señal
 freqs = np.arange(0, 1350, 0.1)
 fourier_intensities = np.abs(Fourier_transform(t_data, y_data, freqs))
-#plt.plot(freqs, fourier_intensities)
-#plt.title("Fourier transform of the signal")
-#plt.ylabel("Intensity")
-#plt.xlabel("Frequencies (Hz)")
-#plt.savefig("1.a.pdf", bbox_inches="tight", pad_inches=0.1)
+plt.plot(freqs, fourier_intensities)
+plt.title("Fourier transform of the signal")
+plt.ylabel("Intensity")
+plt.xlabel("Frequencies (Hz)")
+plt.savefig("1.a.pdf", bbox_inches="tight", pad_inches=0.1)
 
 #1.b.
 #Usamos la función del taller 1 para remover picos
@@ -151,21 +151,21 @@ def Fourier_transform(t, y, f):
     return np.array(Fourier)
 
 sampling_noises = [0, 0.0001, 0.0002, 0.0005]
-#fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-#axes = axes.flatten()
+fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+axes = axes.flatten()
 for i, sampling_noise in enumerate(sampling_noises):
     señal = generate_data(1, 0.001, 1, 50, 0.2, sampling_noise=sampling_noise)
     t_data, y_data = señal
     freqs = np.arange(0, 1350, 0.5)
     fourier_intensities = np.abs(Fourier_transform(t_data, y_data, freqs))
     
-    #axes[i].plot(freqs, fourier_intensities)
-    #axes[i].set_title(f"Sampling noise = {round(sampling_noise*100/0.001, 4)}% of dt")
-    #axes[i].set_xlabel("Frecuencia (Hz)")
-    #axes[i].set_ylabel("Intensidad Fourier")
+    axes[i].plot(freqs, fourier_intensities)
+    axes[i].set_title(f"Sampling noise = {round(sampling_noise*100/0.001, 4)}% of dt")
+    axes[i].set_xlabel("Frecuencia (Hz)")
+    axes[i].set_ylabel("Intensidad Fourier")
 
-#plt.tight_layout()
-#plt.show()
+plt.tight_layout()
+plt.savefig("1.d (BONO).pdf", bbox_inches="tight", pad_inches=0.1)
 
 #Punto 2
 
@@ -187,20 +187,20 @@ datos_2["spots"] = spots
 #Para hallar la frecuencia (y por tanto el periodo) con mayor precisión, aumentamos el tiempo de observación con ceros.
 
 spots = spots - np.mean(spots)
-ft = np.fft.fft(spots, n=len(spots)*2) #Zero padding al doble
+ft = np.fft.fft(spots, n=len(spots)*2) #Zero padding al doble (BONO)
 ft_freqs = np.fft.fftfreq(len(ft), d=1)
 mask = (ft_freqs >= 0)
 ft_abs = np.abs(ft[mask])
 ft_freqs = ft_freqs[mask]
 periodo = 1/ft_freqs[np.argmax(ft_abs[1:])+1]
-#print(periodo)
-#guardar el periodo
+np.savetxt("2.b.txt", np.array([periodo]))
+
 #---------------------------------------------------------------------------------------------------------------------
 ft_full = np.fft.fft(spots, n=len(spots)*2)
 ft_freqs_full = np.fft.fftfreq(len(ft_full), d=1)
 
 # Filtro gaussiano pasa bajas completo
-lowpass_sigma_factor = 1.0
+lowpass_sigma_factor = 5.0
 sigma_low = lowpass_sigma_factor * 1/7300
 H_low_full = np.exp(-(ft_freqs_full**2) / (2 * sigma_low**2))
 
@@ -216,7 +216,7 @@ plt.ylabel("Número de manchas")
 plt.title("Original vs Filtrada (filtro gaussiano en frecuencia)")
 plt.legend()
 plt.tight_layout()
-#plt.show()
+plt.savefig("2.b.data.pdf", bbox_inches="tight", pad_inches=0.1)
 
 #---------------------------------------------------------------------------------------------------------------------
 
@@ -225,4 +225,7 @@ fechas = years[local_maxima_indices[0]]
 maxima = y_filtered_full[local_maxima_indices[0]]
 plt.figure()
 plt.plot(fechas, maxima)
-#plt.show()
+plt.xlabel("Año")
+plt.ylabel("Valor máximo (spots)")
+plt.title("Maximo vs. año")
+plt.savefig("2.b.maxima.pdf", bbox_inches="tight", pad_inches=0.1)
