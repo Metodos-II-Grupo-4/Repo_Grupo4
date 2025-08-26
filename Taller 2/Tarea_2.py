@@ -142,7 +142,7 @@ plt.tight_layout(pad=1.5)
 plt.close()
 
 #4 Punto
-df = pd.read_csv(r"OGLE-LMC-CEP-0001.dat", 
+df = pd.read_csv("OGLE-LMC-CEP-0001.dat", 
                  sep=" ", header=None, names=["tiempo", "brillo", "error"])
 
 time = df["tiempo"].to_numpy()
