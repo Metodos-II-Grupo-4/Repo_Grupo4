@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
+import pandas as pd
 
 #Punto 1
 
@@ -150,18 +151,78 @@ def Fourier_transform(t, y, f):
     return np.array(Fourier)
 
 sampling_noises = [0, 0.0001, 0.0002, 0.0005]
-fig, axes = plt.subplots(2, 2, figsize=(10, 8))
-axes = axes.flatten()
+#fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+#axes = axes.flatten()
 for i, sampling_noise in enumerate(sampling_noises):
     señal = generate_data(1, 0.001, 1, 50, 0.2, sampling_noise=sampling_noise)
     t_data, y_data = señal
     freqs = np.arange(0, 1350, 0.5)
     fourier_intensities = np.abs(Fourier_transform(t_data, y_data, freqs))
     
-    axes[i].plot(freqs, fourier_intensities)
-    axes[i].set_title(f"Sampling noise = {round(sampling_noise*100/0.001, 4)}% of dt")
-    axes[i].set_xlabel("Frecuencia (Hz)")
-    axes[i].set_ylabel("Intensidad Fourier")
+    #axes[i].plot(freqs, fourier_intensities)
+    #axes[i].set_title(f"Sampling noise = {round(sampling_noise*100/0.001, 4)}% of dt")
+    #axes[i].set_xlabel("Frecuencia (Hz)")
+    #axes[i].set_ylabel("Intensidad Fourier")
 
 #plt.tight_layout()
+#plt.show()
+
+#Punto 2
+
+#2. a. Arreglo
+datos_2 = pd.read_csv("Taller 2/SN_d_tot_V2.0.csv")
+years = datos_2["year"]
+spots = datos_2["spots"].copy().astype(float)
+spots_without_error = spots[spots != -1]
+indices = np.array(spots_without_error.index)
+spots_without_error = np.array(spots_without_error)
+spl = sp.interpolate.CubicSpline(indices, spots_without_error)
+
+#Reemplazamos los spots == -1 por los de interpolación:
+indices_to_replace = spots[spots == -1].index
+spots[indices_to_replace] = spl(indices_to_replace)
+datos_2["spots"] = spots
+
+#2. b.
+#Para hallar la frecuencia (y por tanto el periodo) con mayor precisión, aumentamos el tiempo de observación con ceros.
+
+spots = spots - np.mean(spots)
+ft = np.fft.fft(spots, n=len(spots)*2) #Zero padding al doble
+ft_freqs = np.fft.fftfreq(len(ft), d=1)
+mask = (ft_freqs >= 0)
+ft_abs = np.abs(ft[mask])
+ft_freqs = ft_freqs[mask]
+periodo = 1/ft_freqs[np.argmax(ft_abs[1:])+1]
+#print(periodo)
+#guardar el periodo
+#---------------------------------------------------------------------------------------------------------------------
+ft_full = np.fft.fft(spots, n=len(spots)*2)
+ft_freqs_full = np.fft.fftfreq(len(ft_full), d=1)
+
+# Filtro gaussiano pasa bajas completo
+lowpass_sigma_factor = 1.0
+sigma_low = lowpass_sigma_factor * 1/7300
+H_low_full = np.exp(-(ft_freqs_full**2) / (2 * sigma_low**2))
+
+# Filtrar todo el espectro
+ft_filtered_full = ft_full * H_low_full
+y_filtered_full = np.fft.ifft(ft_filtered_full).real
+
+plt.figure(figsize=(10,5))
+plt.plot(years, spots, label="Original", alpha=0.5)
+plt.plot(years, y_filtered_full[:75818], label="Filtrada (dominio freq)", color="red", linewidth=2)
+plt.xlabel("Año")
+plt.ylabel("Número de manchas")
+plt.title("Original vs Filtrada (filtro gaussiano en frecuencia)")
+plt.legend()
+plt.tight_layout()
+#plt.show()
+
+#---------------------------------------------------------------------------------------------------------------------
+
+local_maxima_indices = sp.signal.argrelextrema(y_filtered_full[:75818], np.greater)
+fechas = years[local_maxima_indices[0]]
+maxima = y_filtered_full[local_maxima_indices[0]]
+plt.figure()
+plt.plot(fechas, maxima)
 #plt.show()
