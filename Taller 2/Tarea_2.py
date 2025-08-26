@@ -39,12 +39,45 @@ for ch in range(3):
     img_fin[:, :, ch] = desenfo.astype(np.uint8)
 
 Image.fromarray(img_fin).save("3.a.jpg")
-
 #3.b. Ruido periódico
 #3.b.a. P_a_t_o
-
-ruta_img2=os.path.join(script_dir, "p_a_t_o.jpg")
+ruta_img2="p_a_t_o.jpg"
 img2=np.array(Image.open(ruta_img2))
+F = np.fft.fft2(img2)
+F = np.fft.fftshift(F)
+
+h, w = F.shape
+X2, Y2 = np.meshgrid(np.arange(-w//2, w//2), np.arange(-h//2, h//2))
+Z = np.hypot(X2, Y2) <= 20
+
+#plt.imshow(abs(F),norm="log")
+Z = (np.hypot(X2, Y2) > 3) & (np.hypot(X2, Y2) < 20)
+F_filtered = F * (1 - Z)
+#plt.figure(figsize=(6,7))
+#plt.imshow(abs(F_filtered),norm="log")
+img_filtrada = np.fft.ifft2(np.fft.fftshift(F_filtered))
+Image.fromarray(img_filtrada.real).save("3.b.a.jpg")
+#plt.imshow(img_filtrada.real)
+
+#3.b.b. g_a_t_o
+ruta_img3="g_a_t_o.png"
+img3=np.array(Image.open(ruta_img3))
+F2 = np.fft.fft2(img3)
+F2 = np.fft.fftshift(F2)
+
+h2, w2 = F2.shape
+print(F2.shape)
+X3, Y3 = np.meshgrid(np.arange(-w2//2, w2//2), np.arange(-h2//2, h2//2))
+Z2 = (np.hypot(X3, Y3) > 15) & (np.hypot(X3, Y3) < 25)
+
+F2_filtered = F2.copy()
+F2_filtered[0:350, 370:380] = 0.
+F2_filtered[400:759, 370:380] = 0.
+
+F2_filtered[370:390,0:300] = 0.
+F2_filtered[370:390,260:280] = 0.
+img2_filtrada = np.fft.ifft2(np.fft.fftshift(F2_filtered))
+Image.fromarray(img2_filtrada.real).save("3.b.a.jpg")
 
 #5. Aplicación real: Reconstrucción tomográfica filtrada
 file_path = os.path.join(script_dir, "4.npy")
