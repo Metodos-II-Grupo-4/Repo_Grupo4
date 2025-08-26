@@ -1,13 +1,50 @@
 #Tarea 2 Métodos Computacionales II
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import ndimage as ndi
 import matplotlib.lines as mlines
-import os
+from matplotlib.colors import LogNorm
+from scipy import ndimage as ndi
+from PIL import Image
 
-#Aplicación real: Reconstrucción tomográfica filtrada
 script_dir = os.path.dirname(os.path.abspath(__file__))
+
+#3. Filtrando imágenes (FFT 2D)
+
+#3.a. Desenfoque
+
+ruta_imagen = os.path.join(script_dir, "gato Miette.jpg")
+img = np.array(Image.open(ruta_imagen))
+
+h, w, c = img.shape
+X, Y = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h))
+sigma = 0.1  # controla qué tanto desenfoque hay
+gauss = np.exp(-(X**2 + Y**2) / (2 * sigma**2))
+
+img_fin = np.zeros_like(img)
+
+for ch in range(3):
+    F = np.fft.fft2(img[:, :, ch])
+    F = np.fft.fftshift(F)
+    
+    F_fil = F * gauss
+    
+    F_ishift = np.fft.ifftshift(F_fil)
+    desenfo = np.fft.ifft2(F_ishift).real
+    
+    desenfo = np.clip(desenfo, 0, 255)
+    img_fin[:, :, ch] = desenfo.astype(np.uint8)
+
+Image.fromarray(img_fin).save("3.a.jpg")
+
+#3.b. Ruido periódico
+#3.b.a. P_a_t_o
+
+ruta_img2=os.path.join(script_dir, "p_a_t_o.jpg")
+img2=np.array(Image.open(ruta_img2))
+
+#5. Aplicación real: Reconstrucción tomográfica filtrada
 file_path = os.path.join(script_dir, "4.npy")
 data = np.load(file_path)
 
