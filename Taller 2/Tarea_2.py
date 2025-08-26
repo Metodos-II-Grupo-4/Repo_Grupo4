@@ -195,8 +195,8 @@ plt.ylabel("Potencia")
 plt.title("Espacio de frecuencias")
 plt.grid(True)
 plt.show()
-print(best_freq)
-print(best_period)
+#print(best_freq)
+#print(best_period)
 
 plt.figure(figsize=(6,4))
 plt.scatter(ϕ , brightness, s=10,marker = "D", color="black")
@@ -205,4 +205,31 @@ plt.ylabel("Brillo")
 plt.title("Brillo vs fase")
 plt.grid(True)
 plt.savefig("4.pdf")
-plt.show()
+#plt.show()
+
+# 4 Punto usando transformada rápida con linspace para obtener datos equiespaciados.
+
+t_uniforme = np.linspace(min(time), max(time), len(time))  
+b_uniforme = np.interp(t_uniforme, time, brightness)
+
+dt = np.mean(np.diff(time))
+fft_vals = np.fft.fft(b_uniforme - np.mean(b_uniforme)) #En realidad el valor maximo es f=0, pero si no restamos todo se daña
+fft_freqs = np.fft.fftfreq(len(t_uniforme), d=dt)  
+
+
+pos = fft_freqs > 0
+fft_freqs = fft_freqs[pos]
+fft_power = (fft_vals[pos])
+
+
+fmax = fft_freqs[np.argmax(fft_vals)]
+#print( fmax)
+ϕ = np.mod(fmax * time, 1)
+
+plt.scatter(ϕ, brightness, s=10, alpha=0.7)
+plt.grid(True)
+plt.xlabel("Fase")
+plt.ylabel("Brillo")
+plt.title("Brillo de la estrella en función de la fase")
+plt.savefig("4.pdf")
+#plt.show()
