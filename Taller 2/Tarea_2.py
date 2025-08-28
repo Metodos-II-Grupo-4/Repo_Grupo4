@@ -407,7 +407,7 @@ time = df["tiempo"].to_numpy()
 brightness = df["brillo"].to_numpy()
 
 frequency, power = LombScargle(time, brightness).autopower(
-    minimum_frequency=0.01,maximum_frequency=2,samples_per_peak=len(time))
+    minimum_frequency=0.01,maximum_frequency=10,samples_per_peak=len(time))
 
 best_freq = frequency[np.argmax(power)] #esto es por el pico en el espacio de frecuencias, queremos la frecuencia que tiene ese pico
 best_period = 1 / best_freq
