@@ -304,6 +304,39 @@ F2_filtered[370:390,260:280] = 0.
 img2_filtrada = np.fft.ifft2(np.fft.fftshift(F2_filtered))
 Image.fromarray(img2_filtrada.real).save("3.b.a.jpg")
 
+#4 Punto
+df = pd.read_csv("OGLE-LMC-CEP-0001.dat", 
+                 sep=" ", header=None, names=["tiempo", "brillo", "error"])
+
+time = df["tiempo"].to_numpy()
+brightness = df["brillo"].to_numpy()
+
+frequency, power = LombScargle(time, brightness).autopower(
+    minimum_frequency=0.01,maximum_frequency=10,samples_per_peak=len(time))
+
+best_freq = frequency[np.argmax(power)] #esto es por el pico en el espacio de frecuencias, queremos la frecuencia que tiene ese pico
+best_period = 1 / best_freq
+ϕ = np.mod(best_freq * time, 1)
+
+plt.figure(figsize=(6,4))
+plt.plot(frequency, power, color="black")
+plt.xlabel("Frecuencia [ciclos/día]")
+plt.ylabel("Potencia")
+plt.title("Espacio de frecuencias")
+plt.grid(True)
+plt.show()
+#print(best_freq)
+#print(best_period)
+
+plt.figure(figsize=(6,4))
+plt.scatter(ϕ , brightness, s=10,marker = "D", color="black")
+plt.xlabel("Fase")
+plt.ylabel("Brillo")
+plt.title("Brillo vs fase")
+plt.grid(True)
+plt.savefig("4.pdf")
+#plt.show()
+
 #5. Aplicación real: Reconstrucción tomográfica filtrada
 file_path = os.path.join(script_dir, "4.npy")
 data = np.load(file_path)
@@ -399,62 +432,5 @@ plt.tight_layout(pad=1.5)
 #plt.savefig("grafica_tomografia.png", dpi=300, bbox_inches="tight")
 plt.close()
 
-#4 Punto
-df = pd.read_csv("OGLE-LMC-CEP-0001.dat", 
-                 sep=" ", header=None, names=["tiempo", "brillo", "error"])
-
-time = df["tiempo"].to_numpy()
-brightness = df["brillo"].to_numpy()
-
-frequency, power = LombScargle(time, brightness).autopower(
-    minimum_frequency=0.01,maximum_frequency=10,samples_per_peak=len(time))
-
-best_freq = frequency[np.argmax(power)] #esto es por el pico en el espacio de frecuencias, queremos la frecuencia que tiene ese pico
-best_period = 1 / best_freq
-ϕ = np.mod(best_freq * time, 1)
-
-plt.figure(figsize=(6,4))
-plt.plot(frequency, power, color="black")
-plt.xlabel("Frecuencia [ciclos/día]")
-plt.ylabel("Potencia")
-plt.title("Espacio de frecuencias")
-plt.grid(True)
-plt.show()
-#print(best_freq)
-#print(best_period)
-
-plt.figure(figsize=(6,4))
-plt.scatter(ϕ , brightness, s=10,marker = "D", color="black")
-plt.xlabel("Fase")
-plt.ylabel("Brillo")
-plt.title("Brillo vs fase")
-plt.grid(True)
-plt.savefig("4.pdf")
-#plt.show()
-
-# 4 Punto usando transformada rápida con linspace para obtener datos equiespaciados.
-
-t_uniforme = np.linspace(min(time), max(time), len(time))  
-b_uniforme = np.interp(t_uniforme, time, brightness)
-
-dt = np.mean(np.diff(time))
-fft_vals = np.fft.fft(b_uniforme - np.mean(b_uniforme)) #En realidad el valor maximo es f=0, pero si no restamos todo se daña
-fft_freqs = np.fft.fftfreq(len(t_uniforme), d=dt)  
 
 
-pos = fft_freqs > 0
-fft_freqs = fft_freqs[pos]
-fft_power = (fft_vals[pos])
-
-
-fmax = fft_freqs[np.argmax(fft_vals)]
-#print( fmax)
-ϕ = np.mod(fmax * time, 1)
-
-plt.scatter(ϕ, brightness, s=10, alpha=0.7)
-plt.grid(True)
-plt.xlabel("Fase")
-plt.ylabel("Brillo")
-plt.title("Brillo de la estrella en función de la fase")
-plt.savefig("4.pdf")
-#plt.show()
