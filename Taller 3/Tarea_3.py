@@ -164,4 +164,4 @@ ax[2,1].plot(t, L_vals)
 ax[2,1].set_title("Momento angular total vs t")
 
 plt.tight_layout()
-plt.savefig("1_c_resultados.pdf")
+plt.savefig("1.c.pdf")
