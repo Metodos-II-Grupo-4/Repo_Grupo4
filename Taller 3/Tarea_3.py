@@ -164,4 +164,59 @@ ax[2,1].plot(t, L_vals)
 ax[2,1].set_title("Momento angular total vs t")
 
 plt.tight_layout()
+
 plt.savefig("1.c.pdf")
+
+
+# PUNTO 5 (Circuito genético)
+
+from scipy.signal import find_peaks
+
+def func(t, y, a, b):
+    m1, m2, m3, p1, p2, p3 = y
+    al0 = a/ 1000
+    dm1 = a/(1 + p3**2) + al0 - m1
+    dm2 = a/(1 + p1**2) + al0 - m2
+    dm3 = a/(1+ p2**2) + al0 - m3
+    dp1 = -b *(p1 - m1)
+    dp2 = -b *(p2 - m2)
+    dp3 = -b*(p3 - m3)
+
+    return [dm1, dm2, dm3, dp1,dp2, dp3 ]
+
+
+def calculate_amplitude(a, b):
+    y0 = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+    t_eval = np.linspace(0, 400, 700)
+
+    sol = solve_ivp(func, (0,400), y0, args=(a, b), t_eval=t_eval, method='RK45')
+    p3_values = sol.y[5] 
+    # Agarra p3, que esta en la 6 columna de las soluciones
+    p3_max, _  = find_peaks(p3_values)
+    p3_min, _ = find_peaks(-p3_values)
+    maxi = np.max(p3_values[p3_max])
+    mini = np.min(p3_values[p3_min])
+    amplitude = (maxi - mini)
+    return np.log10(amplitude)
+
+
+
+alpha_vals = np.logspace(0, 5, 5)
+beta_vals = np.logspace(0, 3, 3)
+amplitudes = np.zeros((len(alpha_vals), len(beta_vals)))
+
+for i, alpha in enumerate(alpha_vals): #Con enumerate queda mas comodo, para evaluar todas las posibles combinaciones de a y b en el logspace.
+    for j, beta in enumerate(beta_vals):
+        amplitudes[i, j] = calculate_amplitude(alpha, beta)
+
+plt.figure(figsize=(10, 8))
+X, Y = np.meshgrid(np.log10(alpha_vals), np.log10(beta_vals))
+plt.contourf(X, Y, amplitudes.T, levels=20, cmap='hot')
+plt.colorbar(label='log10(Amplitud de p3)(creciente)')
+plt.xlabel('log10(α)')
+plt.ylabel('log10(β)')
+plt.title('Amplitud de Oscilación de p3 circuito genético.')
+plt.tight_layout()
+plt.savefig('5.pdf')
+plt.show()
+
