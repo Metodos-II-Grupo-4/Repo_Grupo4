@@ -168,6 +168,131 @@ plt.tight_layout()
 plt.savefig("1.c.pdf")
 
 
+# PUNTO 3 (Molécula diatómica)
+
+hbar, a, x0 = 0.1, 0.8, 10.0
+dx = 0.005
+
+V = lambda x: (1.0 - np.exp(a*(x - x0)))**2 - 1.0
+# Se define la Energía de Morse, como su mínimo es -1, las E ligadas estan (-1,0)
+
+def x2_turn(eps):
+    s = np.sqrt(1.0 + eps)
+    return x0 + np.log(1.0 + s)/a
+
+# Se fija el borde derecho desde el cual se va a simular
+
+def integrate(eps, slope0=1e-6):
+    xL = 0.0
+    xR = x2_turn(eps) + 1.0
+    N = int(np.ceil((xR - xL)/dx)) + 1
+    x = np.linspace(xL, xR, N)
+    psi = np.zeros(N)
+    dpsi = np.zeros(N)
+    psi[0] = 0.0
+    dpsi[0] = slope0
+    inv_h2 = 1.0/(hbar*hbar)
+    for i in range(N-1):
+        xi = x[i]
+        Vi = V(xi)
+        k1p, k1q = dpsi[i], (Vi - eps)*psi[i]*inv_h2
+        xh = xi + 0.5*dx
+        Vh = V(xh)
+        ph = psi[i] + 0.5*dx*k1p
+        qh = dpsi[i] + 0.5*dx*k1q
+        k2p, k2q = qh, (Vh - eps)*ph*inv_h2
+        ph2 = psi[i] + 0.5*dx*k2p
+        qh2 = dpsi[i] + 0.5*dx*k2q
+        k3p, k3q = qh2, (Vh - eps)*ph2*inv_h2
+        x1s = xi + dx
+        V1 = V(x1s)
+        p1 = psi[i] + dx*k3p
+        q1 = dpsi[i] + dx*k3q
+        k4p, k4q = q1, (V1 - eps)*p1*inv_h2
+        psi[i+1]  = psi[i]  + (dx/6.0)*(k1p + 2*k2p + 2*k3p + k4p)
+        dpsi[i+1] = dpsi[i] + (dx/6.0)*(k1q + 2*k2q + 2*k3q + k4q)
+        if not np.isfinite(psi[i+1]) or not np.isfinite(dpsi[i+1]):
+            return None, None, 1e50
+    return x, psi, np.hypot(psi[-1], dpsi[-1])
+# Integrador de Shrodinger. Psi'' = (V - E)*psi/hbar^2. p = psi, q = psi'
+# q' = (V - E)*p/hbar^2. psi(0)=0, psi'(0)=slope0 pequeño
+# k1 ... k4 son los incrementos de Runge-Kutta. Al final del bucle se alcanza x_i+1
+# en caso de nan o inf, se retorna 1e50 para que no se tome como mínimo
+# retorna malla x, funcion psi y la norma al borde derecho
+
+def golden_min(aE, bE, iters=22):
+    phi = (1 + np.sqrt(5.0))/2.0
+    inv = 1.0/phi
+    L, R = aE, bE
+    c = R - (R - L)*inv
+    d = L + (R - L)*inv
+    fc = integrate(c)[2]
+    fd = integrate(d)[2]
+    for _ in range(iters):
+        if fc < fd: 
+            R, d, fd = d, c, fc
+            c = R - (R - L)*inv
+            fc = integrate(c)[2]
+        else:       
+            L, c, fc = c, d, fd
+            d = L + (R - L)*inv
+            fd = integrate(d)[2]
+    return 0.5*(L+R)
+# Minimiza la norma de borde sin utilizar derivadas
+
+E_scan = np.linspace(-0.99, -0.01, 1400)
+norms = np.array([integrate(E)[2] for E in E_scan])
+sm = np.convolve(np.pad(np.log10(norms), (4,4), 'edge'), np.ones(9)/9.0, 'valid')
+mins = [i for i in range(1, len(sm)-1) if sm[i] < sm[i-1] and sm[i] < sm[i+1]]
+# Barrido de energías y preselección de mínimos
+# norms: valor de la norma ||(psi, psi')|| en el borde para cada E
+# np.log10: se usa para reducir el rango dinámico
+# sm: suavizado de norms con una ventana de 9 puntos
+# convolve: promedio móvil 
+# mins: índices donde el suavizado tiene un mínimo local estricto 
+
+
+E_list, states, last = [], [], -999
+for i in mins:
+    if i - last < 16: continue
+    last = i
+    L, R = max(0, i-8), min(len(E_scan)-1, i+8)
+    e = golden_min(E_scan[L], E_scan[R])
+    x, psi, _ = integrate(e)
+    if x is None: continue
+    A = np.trapz(psi*psi, x)
+    if A <= 0 or not np.isfinite(A): continue
+    states.append((x, psi/np.sqrt(A)))
+    E_list.append(e)
+# Filtro de separación i - last < 16: para evitar tomar limites demasiado cercanos
+# Se aplica goldenmin en un intervalo reducido cercano al mínimo en cuestión
+# Se integra la energía y se normaliza usanto trapezoide
+# se guarda la pareja (x, psi_normalizada) y la energía
+
+ordr = np.argsort(E_list)
+E_list = list(np.array(E_list)[ordr])
+states = [states[i] for i in ordr]
+plt.figure(figsize=(7.2,5.2), dpi=130)
+for E,(x,psi) in zip(E_list, states):
+    plt.plot(x, E + 0.12*psi, lw=1.2)
+    plt.hlines(E, 0, x[-1], ls='dotted', lw=0.8)
+xg = np.linspace(0, 12, 1200)
+plt.plot(xg, V(xg), 'k', lw=1.0, alpha=0.9, label="Morse potential")
+plt.xlim(0,12)
+plt.ylim(-1.02,0.05)
+plt.xlabel("x")
+plt.ylabel("Energy")
+plt.legend(loc="lower left", frameon=False)
+plt.tight_layout()
+plt.savefig("3_diagrama.png", bbox_inches="tight")
+plt.show()
+with open("3_energies.txt","w",encoding="utf-8") as f:
+    for k,E in enumerate(E_list): f.write(f"n={k}\tE={E:.8f}\n")
+# Graficar cada psi_n normalizada separada verticalmente (con un factor de escala 0.12 por razones visuales)
+# con hlines se grafica la energía correspondiente.
+# En negro se traza la referencia (potencial de Morse)
+# Fija límites y guarda en PNG, escribe un archivo de texto con las energías halladas
+
 # PUNTO 5 (Circuito genético)
 
 from scipy.signal import find_peaks
