@@ -269,7 +269,6 @@ for v0 in v0_values:
     angles.append(theta_nr)
     theta = angles[-1]
 
-print('hola')
 plt.figure(figsize=(10, 6))
 plt.plot(v0_values, x_max, marker='o', linewidth=1)
 plt.xlabel(r'$v_0$ (m/s)')
@@ -277,7 +276,6 @@ plt.ylabel(r'$x_{max}$ (m)')
 plt.title('Alcance máximo horizontal vs velocidad inicial')
 plt.grid(True)
 plt.savefig("2.a.pdf")
-print('hola :0')
 
 #BONO
 #--------------------------
