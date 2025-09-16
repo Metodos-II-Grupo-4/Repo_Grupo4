@@ -4,6 +4,10 @@ from scipy.integrate import solve_ivp
 from scipy.optimize import minimize_scalar
 import matplotlib.animation as animation
 from joblib import Parallel, delayed
+from scipy import special
+from scipy.sparse.linalg import spsolve
+from scipy.sparse import coo_matrix, lil_matrix
+import pandas as pd
 
 #PUNTO 1
 #1.a. Sistema depredador-presa
@@ -546,4 +550,222 @@ plt.title('Amplitud de Oscilación de p3 circuito genético.')
 plt.tight_layout()
 plt.savefig('5.pdf')
 
+#Punto 6
+L = 1.0
+A = 1.0
+G = 1.0
+E = 1.0
+I = 1.0               
+kappa = 5.0/6.0
 
+# Malla
+N = 200                                
+x = np.linspace(0.0, L, N)
+h = x[1] - x[0]
+
+# Carga distribuida 
+q = special.betainc(3.0, 6.0, x)
+
+# Constantes
+kAG = kappa * A * G
+alpha = kAG / (E * I)
+
+def indice(var, i):       
+    return var * N + i
+
+# Diferencias finitas 
+def derivada_MDF(i, N, h):
+    c = {}
+    if i == 0:
+        c[i]   = -3.0/(2*h); c[i+1] =  4.0/(2*h); c[i+2] = -1.0/(2*h)
+    elif i == N-1:
+        c[i]   =  3.0/(2*h); c[i-1] = -4.0/(2*h); c[i-2] =  1.0/(2*h)
+    else:
+        c[i-1] = -1.0/(2*h); c[i+1] =  1.0/(2*h)
+    return c
+
+rows, cols, data = [], [], []
+b = np.zeros(4*N)
+
+for i in range(N):
+    # (1) phi' - phi_p = 0
+    for j, c in derivada_MDF(i, N, h).items():
+        rows.append(indice(0,i))
+        cols.append(indice(0,j))
+        data.append(c)
+    rows.append(indice(0,i))
+    cols.append(indice(1,i))
+    data.append(-1.0)
+
+    # (2) phi'' + alpha*(phi - w') = 0   (phi'' = (phi_p)')
+    for j, c in derivada_MDF(i, N, h).items():
+        rows.append(indice(1,i))
+        cols.append(indice(1,j))
+        data.append(c)
+    rows.append(indice(1,i))
+    cols.append(indice(0,i))
+    data.append(+alpha)
+    
+    rows.append(indice(1,i))
+    cols.append(indice(3,i))
+    data.append(-alpha)  # w' = w_p
+
+    # (3) w' - w_p = 0
+    for j, c in derivada_MDF(i, N, h).items():
+        rows.append(indice(2,i))
+        cols.append(indice(2,j))
+        data.append(c)
+    rows.append(indice(2,i))
+    cols.append(indice(3,i))
+    data.append(-1.0)
+
+    # (4) w'' - phi' = - q/kAG   (w'' = (w_p)')
+    for j, c in derivada_MDF(i, N, h).items():
+        rows.append(indice(3,i))
+        cols.append(indice(3,j))
+        data.append(c)
+    rows.append(indice(3,i))
+    cols.append(indice(1,i))
+    data.append(-1.0)   # -phi'
+    b[indice(3,i)] = - q[i] / kAG
+
+A = coo_matrix((data, (rows, cols)), shape=(4*N, 4*N)).tolil()
+
+#Condiciones de frontera
+
+# phi(0)=0
+r = indice(0,0)
+A.rows[r] = [indice(0,0)]
+A.data[r] = [1.0]
+b[r] = 0.0
+
+# w(0)=0
+r = indice(2,0)
+A.rows[r] = [indice(2,0)]
+A.data[r] = [1.0]
+b[r] = 0.0
+
+# phi_p(L)=0
+r = indice(1,N-1)
+A.rows[r] = [indice(1,N-1)]
+A.data[r] = [1.0]
+b[r] = 0.0
+
+# w_p(L) - phi(L) = 0
+r = indice(3,N-1)
+A.rows[r] = [indice(3,N-1), indice(0,N-1)]
+A.data[r] = [1.0, -1.0]
+b[r] = 0.0
+
+u = spsolve(A.tocsc(), b)
+phi   = u[0*N:1*N]
+phi_p = u[1*N:2*N]
+w     = u[2*N:3*N]
+w_p   = u[3*N:4*N]
+
+y_top, y_bottom = 0.2, -0.2
+
+if w[-1] > 0:       
+    w, phi = -w, -phi  
+
+espesor_viga = y_top - y_bottom  
+offset_visual = 0.4  # Desplazamiento vertical para separar visualmente
+w=w[::-1]
+
+x_def_top = x - y_top * phi
+y_def_top = -w - y_top - offset_visual  
+
+x_def_bottom = x - y_bottom * phi  
+y_def_bottom = -w - y_bottom - offset_visual  
+
+# Eje neutro (centro de la viga)
+y_neutro = -w - (y_top + y_bottom)/2 - offset_visual
+
+plt.figure(figsize=(12,4))
+
+plt.plot(x, y_top*np.ones_like(x), color="black")
+plt.plot(x, y_bottom*np.ones_like(x), color="black")
+plt.fill_between(x, y_bottom, y_top, color="red", alpha=0.5, label="Viga inicial")
+
+y_arrows = y_top + 0.35
+plt.quiver(x, y_arrows, np.zeros_like(q), -q, angles="xy", scale=20,
+           color="blue", width=0.003, label="Carga q(x)")
+
+plt.plot(x_def_top, y_def_top, 'r-', linewidth=2, label='Deformada (superior)')
+plt.plot(x_def_bottom, y_def_bottom, 'b-', linewidth=2, label='Deformada (inferior)')
+plt.plot(x, y_neutro, 'g--', linewidth=2, label='Eje neutro deformado')
+
+plt.xlabel('x'); plt.ylabel('y')
+plt.title('Comparación: Viga inicial vs Viga deformada bajo carga distribuida')
+plt.legend(fontsize='small')
+plt.axis('equal')
+plt.ylim(-1.2, 0.8)
+plt.xlim(-0.1, 1.1)
+plt.gca().set_aspect('auto')
+plt.tight_layout()
+plt.savefig("6.pdf", format="pdf")
+
+#Punto 7
+def lane_emden_rhs(x, y, n):
+    theta, dtheta = y
+    theta_n = theta ** n if theta > 0.0 else 0.0
+    
+    if x == 0.0:
+        return [dtheta, 2.0/3.0 - theta_n]
+    return [dtheta, -(2.0/x) * dtheta - theta_n]
+
+def serie_inicial(x_eps):
+    return [1.0 - (x_eps**2)/6.0, -x_eps/3.0]
+
+def evento_theta0(x, y, n):
+    return y[0]
+
+evento_theta0.terminal = True
+evento_theta0.direction = -1
+
+def integrar(n, x_max=50.0, eps=1e-6):
+    y0 = serie_inicial(eps)
+    sol = solve_ivp(
+        lane_emden_rhs,
+        (eps, x_max),
+        y0,
+        args=(n,),
+        method="RK45",
+        rtol=1e-10,
+        atol=1e-12,
+        max_step=0.05,
+        events=evento_theta0,
+        dense_output=True
+    )
+    return sol
+
+def valores_estrella(n):
+    sol = integrar(n)
+    if not sol.t_events[0].size:
+        return None
+    x_star = sol.t_events[0][0]
+    dtheta_star = sol.sol(x_star)[1]
+    return x_star, dtheta_star
+
+# Calcular resultados
+n_list = [0.0, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0]
+results = []
+
+for n in n_list:
+    props = valores_estrella(n)
+    if props is None:
+        results.append([n, None, None, None])
+        continue
+        
+    x_star, dtheta_star = props
+    mass_prop = -(x_star**2) * dtheta_star
+    rho_ratio = x_star / (3.0 * (-dtheta_star))
+    results.append([n, x_star, mass_prop, rho_ratio])
+
+# Crear DataFrame
+df_estrella = pd.DataFrame(
+    results,
+    columns=['n', 'Radio', 'Masa', 'ρ_c/⟨ρ⟩']
+)
+
+df_estrella.to_csv("7.csv", index=False)
