@@ -297,7 +297,7 @@ with open("3_energies.txt","w",encoding="utf-8") as f:
 
 from scipy.signal import find_peaks
 
-def func(t, y, a, b):
+def func(t, y, a, b): #Se esta planteando el sistema de ecuaciones ciclico, donde p1 depende de p2, p2 de p3 y p3 de p1
     m1, m2, m3, p1, p2, p3 = y
     al0 = a/ 1000
     dm1 = a/(1 + p3**2) + al0 - m1
@@ -307,7 +307,7 @@ def func(t, y, a, b):
     dp2 = -b *(p2 - m2)
     dp3 = -b*(p3 - m3)
 
-    return [dm1, dm2, dm3, dp1,dp2, dp3 ]
+    return [dm1, dm2, dm3, dp1,dp2, dp3 ] # Devuelve las soluciones, m son la cantidad de moleculas de ARNm y p son la cantidad de proteinas traducidas por ARNm
 
 
 def calculate_amplitude(a, b):
@@ -323,16 +323,16 @@ def calculate_amplitude(a, b):
     mini = np.min(p3_values[p3_min])
     amplitude = (maxi - mini)
     return np.log10(amplitude)
-
+#Aqui queremos la amplitud de los picos cuando se vuelve estable, hallar el pico máximo y el mínimo, restarlos y esa sería la amplitud, se hace para cada conjunto de a y b
 
 
 alpha_vals = np.logspace(0, 5, 5)
 beta_vals = np.logspace(0, 3, 3)
-amplitudes = np.zeros((len(alpha_vals), len(beta_vals)))
+amplitudes = np.zeros((len(alpha_vals), len(beta_vals))) # Matriz
 
 for i, alpha in enumerate(alpha_vals): #Con enumerate queda mas comodo, para evaluar todas las posibles combinaciones de a y b en el logspace.
     for j, beta in enumerate(beta_vals):
-        amplitudes[i, j] = calculate_amplitude(alpha, beta)
+        amplitudes[i, j] = calculate_amplitude(alpha, beta) # Hace la amplitud para cada conjunto de a y b
 
 plt.figure(figsize=(10, 8))
 X, Y = np.meshgrid(np.log10(alpha_vals), np.log10(beta_vals))
@@ -344,4 +344,5 @@ plt.title('Amplitud de Oscilación de p3 circuito genético.')
 plt.tight_layout()
 plt.savefig('5.pdf')
 plt.show()
+
 
