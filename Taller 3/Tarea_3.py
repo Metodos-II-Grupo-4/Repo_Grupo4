@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import matplotlib.animation as animation
+from joblib import Parallel, delayed
 
 #PUNTO 1
 #1.a. Sistema depredador-presa
@@ -284,14 +285,59 @@ plt.xlabel("x")
 plt.ylabel("Energy")
 plt.legend(loc="lower left", frameon=False)
 plt.tight_layout()
-plt.savefig("3_diagrama.png", bbox_inches="tight")
-plt.show()
-with open("3_energies.txt","w",encoding="utf-8") as f:
+plt.savefig("3.pdf", bbox_inches="tight")
+with open("3.txt","w",encoding="utf-8") as f:
     for k,E in enumerate(E_list): f.write(f"n={k}\tE={E:.8f}\n")
 # Graficar cada psi_n normalizada separada verticalmente (con un factor de escala 0.12 por razones visuales)
 # con hlines se grafica la energía correspondiente.
 # En negro se traza la referencia (potencial de Morse)
 # Fija límites y guarda en PNG, escribe un archivo de texto con las energías halladas
+
+# PUNTO 4
+def F_4(t, Y, alpha=1.0):
+    theta, r, Ptheta, Pr = Y #Son dos ecuaciones de segundo orden, se necesitan 4 entradas en el vector de estado.
+    return np.array([Ptheta/(r+1)**2,
+                     Pr,
+                     -alpha**2 * (r+1) * np.sin(theta),
+                     alpha**2 * np.cos(theta) - r + Ptheta**2 / (1+r)**3])
+    
+def cruzar_cero(t, Y, *args):
+    theta, r, Ptheta, Pr = Y
+    return theta
+
+cruzar_cero.terminal = False
+cruzar_cero.direction = 0
+    
+alphas = np.linspace(1, 1.2, 20)
+fig, ax = plt.subplots(1,1)
+t = np.linspace(0, 10000, 10000)
+ax.set_xlabel("r")
+ax.set_ylabel("P_r")
+
+def simular_alpha(alpha):
+    solucion_4 = solve_ivp(
+        fun=F_4, #Pasamos la función de vector de estado
+        args=(alpha,),
+        t_span=(0, 10000), #Tiempo de simulación 10^4 s
+        y0=np.array([np.pi/2, 0., 0., 0.]), #Valores iniciales theta=pi/2, r=0, dtheta/dt = 0 y dr/dt = 0.
+        max_step=1, #dt=1
+        events=cruzar_cero,
+        dense_output=False,
+        atol=1e-6, rtol=1e-6,
+        method="RK45" #Usamos el método explícito Runge Kutta de orden 5(4)
+    ) 
+    return solucion_4.y_events[0]
+
+resultados = Parallel(n_jobs=-1)(delayed(simular_alpha)(a) for a in alphas)
+fig, ax = plt.subplots()
+for cruces in resultados:
+    for cruce in cruces:
+        theta, r, Ptheta, Pr = cruce
+        ax.scatter(r, Pr, s=1)
+
+ax.set_xlabel("r")
+ax.set_ylabel("P_r")
+plt.savefig("4.pdf")
 
 # PUNTO 5 (Circuito genético)
 
@@ -343,6 +389,5 @@ plt.ylabel('log10(β)')
 plt.title('Amplitud de Oscilación de p3 circuito genético.')
 plt.tight_layout()
 plt.savefig('5.pdf')
-plt.show()
 
 
