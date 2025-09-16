@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
+from scipy.optimize import minimize_scalar
 import matplotlib.animation as animation
 from joblib import Parallel, delayed
 
@@ -168,6 +169,163 @@ plt.tight_layout()
 
 plt.savefig("1.c.pdf")
 
+#2. Balistica
+
+m = 10.01 #kg
+g = 9.773 #m/s2
+
+#Coeficiente de friccion 
+def beta(y, A=1.642, B=40.624, C=2.36):
+    k = max(1.0 - y / B, 0.0)
+    return A*(k**C)
+
+#2.a. Alcance
+def dynamics(t, Y, theta, v0):
+    x, y, vx, vy = Y #vector de estado 
+    
+    if t == 0:
+        vx = v0 * np.cos(theta) #componentes de la velocidad
+        vy = v0 * np.sin(theta)
+        
+    v = np.hypot(vx, vy) #magnitud
+    
+    dxdt = vx
+    dydt = vy
+    dvxdt = -(beta(y)/m)*v*vx #Fuerza por la friccion 
+    dvydt = -g - (beta(y)/m)*v*vy #Fuerza por la friccion + gravedad
+    
+    return np.array([dxdt, dydt, dvxdt, dvydt]) #derivada temporal
+
+# Define una función que detecta cuándo el proyectil toca el suelo
+def piso(t, Y, theta, v0):
+    x, y, vx, vy = Y
+    return y # Retorna la altura y (cuando y = 0, el proyectil toca el suelo)
+piso.terminal = True #la integración debe terminar cuando se cumpla la condición del evento piso
+piso.direction = -1 # Especifica que el evento se activa cuando la altura y cruza de positivo a negativo
+
+# Define una función que calcula la trayectoria completa del proyectil
+def solucion(theta, v0):
+    theta = np.deg2rad(theta) # grados a radianes
+    Y_inicial = np.array([0, 0, v0*np.cos(theta), v0*np.sin(theta)]) # vector de estado inicial
+    
+    solv = solve_ivp(
+        fun=dynamics, 
+        t_span=(0,50.),       # Intervalo de tiempo de integración [0, 50] segundos
+        y0=Y_inicial, 
+        max_step=0.01,        # Tamaño máximo de paso para la integración
+        args=(v0, theta),     # Argumentos adicionales para la función dynamics
+        events=piso,          # Función de evento para detectar impacto en el suelo
+        dense_output=True,    # Permite interpolación de la solución
+        method='RK45',        # Método de integración: Runge-Kutta de orden 4(5)
+        rtol=1e-6, atol=1e-9) # Tolerancias relativas y absolutas para la precisión
+    return solv
+
+x_solucion = lambda theta, v0: solucion(theta, v0).y_events[0][0][0] #posición x del punto de impacto con el suelo
+
+# ---------------------- Derivadas numéricas (centradas) ----------------------
+def derivada(theta, v0, h=1e-3): #1ra derivada
+    return (x_solucion(theta + h, v0) - x_solucion(theta - h, v0)) / (2*h)
+
+def dderivada(theta, v0, h=1e-3): #2nda derivada
+    return (x_solucion(theta + h, v0) - 2*x_solucion(theta, v0) + x_solucion(theta - h, v0)) / (h**2)
+
+# Newton-Raphson para encontrar el ángulo que maximiza el alcance
+def Newton_Raphson(v0, theta0=45.0, bdd=(10.0,80.0), h=1e-3, max_iter=50, tol=1e-4):
+    theta = float(np.clip(theta0, bdd[0], bdd[1])) #Tomar un theta inicial entre el rango (10, 80)
+    x_theta = x_solucion(theta, v0) # Alcance inicial
+    for k in range(max_iter):
+        f1 = derivada(theta, v0, h) #1ra derivada
+        f2 = dderivada(theta, v0, h) #2nda derivada
+
+        step = - f1/f2   # Paso de Newton: -f'(θ)/f''(θ) para maximizar el alcance
+        theta_new = theta + step # Propone un nuevo ángulo sumando el paso
+        max_step = 5.0  # grados
+        if step > max_step: # Limita el paso si es demasiado grande positivo
+            step = max_step
+        if step < -max_step: # Limita el paso si es demasiado grande negativo
+            step = -max_step
+        
+        # Calcula el nuevo ángulo con el paso limitado y asegura que esté dentro de los límites
+        theta_new = float(np.clip(theta + step, bdd[0], bdd[1])) 
+        x_new = x_solucion(theta_new, v0)
+        # si no mejora, hacer un pequeño paso
+        if x_new < x_theta - 1e-12:
+            small_step = np.sign(f1) * 0.5 # Toma un paso pequeño en la dirección de la derivada
+            theta_new = float(np.clip(theta + small_step, bdd[0], bdd[1]))
+            x_new = x_solucion(theta_new, v0)
+            if x_new < x_theta: # Si aún no mejora, termina la optimización
+                break
+        theta, x_theta = theta_new, x_new # Actualiza theta y x_theta
+    return theta, x_theta, k+1 # Retorna el ángulo óptimo, el alcance máximo y el número de iteraciones
+
+v0_values = np.linspace(5.0, 80.0, 25)
+x_max = []
+angles = []
+
+theta = 45.0 
+for v0 in v0_values:
+    theta_nr, x_nr,_ = Newton_Raphson(v0, theta) #theta se actualiza con el angulo antes encontrado 
+    x_max.append(x_nr)
+    angles.append(theta_nr)
+    theta = angles[-1]
+
+print('hola')
+plt.figure(figsize=(10, 6))
+plt.plot(v0_values, x_max, marker='o', linewidth=1)
+plt.xlabel(r'$v_0$ (m/s)')
+plt.ylabel(r'$x_{max}$ (m)')
+plt.title('Alcance máximo horizontal vs velocidad inicial')
+plt.grid(True)
+plt.savefig("2.a.pdf")
+print('hola :0')
+
+#BONO
+#--------------------------
+
+#2.b Atinar a un objetivo
+
+# Define una función que encuentra el ángulo para golpear un objetivo específico
+def angle_to_hit_target(v0, target_x, target_y):
+    def objective(theta):
+        sol = solucion(theta, v0) # Calcula la trayectoria del proyectil para un ángulo theta dado
+        x_traj = sol.y[0] #coordenadas x de la trayectoria
+        y_traj = sol.y[1] #coordenadas x de la trayectoria
+        distances = np.sqrt((x_traj - target_x)**2 + (y_traj - target_y)**2) #distancia desde cada punto hasta el objetivo
+        return np.min(distances)
+    
+    res = minimize_scalar(objective, bounds=(10., 80.), method='bounded', options={'xatol': 1e-3, 'maxiter': 80})
+    #minimize_scalar de scipy
+    # Límites del ángulo de búsqueda (10° a 80°)
+    # Método de optimización para problemas con límites
+    # Tolerancia en el ángulo (1e-3 grados)
+    # Número máximo de iteraciones
+    if res.fun > 0.1: # Verifica si la distancia mínima encontrada es aceptable (menor a 0.1 metros)
+        return None
+    return np.round(res.x, 2) # Retorna el ángulo óptimo redondeado a 2 decimales
+
+#2.c Varias opciones para disparar
+
+v0_values = np.linspace(10, 140, 100)  # Velocidades iniciales
+theta0_values = np.linspace(10, 80, 100)  # Angulos iniciales
+soluciones = []
+
+for v0 in v0_values:
+    for theta0 in theta0_values:
+        sol = solucion(theta0, v0) #determina las trayectorias
+        x_traj = sol.y[0] #compomente x 
+        y_traj = sol.y[1] # componente y
+        distances = np.sqrt((x_traj - 12.)**2 + (y_traj - 0.)**2) #determina distancia entre la trayectoria y el punto (12, 0)
+        if np.min(distances) < 0.1: #si se acerca por 0.1m se considera que le atino
+            soluciones.append((v0, theta0)) 
+soluciones = np.array(soluciones)
+
+plt.figure(figsize=(10, 6))
+plt.scatter(soluciones[:, 0], soluciones[:, 1], s=10)
+plt.xlabel(r'$v_0$ (m/s)')
+plt.ylabel(r'$\theta_0$ (degrees)')
+plt.title('Condiciones iniciales (12m, 0)')
+plt.grid(True)
+plt.savefig('2.c.pdf')
 
 # PUNTO 3 (Molécula diatómica)
 
