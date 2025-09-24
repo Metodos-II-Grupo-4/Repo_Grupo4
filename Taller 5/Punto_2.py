@@ -78,7 +78,7 @@ ax[0].set_title("Uranio en función de t")
 ax[1].set_title("Neptunio en función de t")
 ax[2].set_title("Plutonio en función de t")
 plt.tight_layout()
-plt.savefig("2.a.pdf")
+#plt.savefig("2.a.pdf")
 
 # -------------------------------
 # 2.b Ecuación diferencial estocástica
@@ -146,80 +146,73 @@ ax[0].legend()
 ax[1].legend()
 ax[2].legend()
 plt.tight_layout()
-plt.savefig("2.b.pdf")
+#plt.savefig("2.b.pdf")
 
 
 # -------------------------------
 # 2.c Simulación exacta (Gillespie)
 # -------------------------------
 def gillespie(t_max, Y0):
+    traj = [np.array(Y0, dtype=float)] #Empezamos igual que en el anterior modelo estocástico
+    Y = np.array(Y0, dtype=float)
+    #Creamos también array de tiempos
+    tiempos = [0]
     t = 0
-    Y = np.array(Y0, dtype=int)
-    times = [t]
-    traj = [Y.copy()]
     while t < t_max:
         U, Np, Pu = Y
-        rates = np.array([A, lambda_U * U, lambda_Np * Np, B * Pu])
+        rates = np.array([A, lambda_U * U, lambda_Np * Np, B * Pu]) #Definimos las tasas como en el documento
         rate_sum = rates.sum()
-        if rate_sum <= 0:
+        if rate_sum <= 0: #Condición trivial, las probabilidades son positivas.
             break
 
-        tau = np.random.exponential(1 / rate_sum)
-        r = np.random.choice(len(rates), p=rates / rate_sum)
+        tau = np.random.exponential(1 / rate_sum) #Tiempo de siguiente reacción
+        r = np.random.choice(len(rates), p=rates / rate_sum) #Elegimos la siguiente reacción
 
-        # Update state
+        # Recalculamos las tasas (como se definió en el documento)
         if r == 0:
             Y[0] += 1
         elif r == 1:
-            Y[0] -= 1; Y[1] += 1
+            Y[0] -= 1
+            Y[1] += 1
         elif r == 2:
-            Y[1] -= 1; Y[2] += 1
+            Y[1] -= 1
+            Y[2] += 1
         elif r == 3:
             Y[2] -= 1
 
         t += tau
-        times.append(t)
+        tiempos.append(t)
         traj.append(Y.copy())
 
-    return np.array(times), np.array(traj)
+    return np.array(tiempos), np.array(traj)
 
-gillespie_trajs = [gillespie(t_max, Y0) for _ in range(5)]
+gillespie_trajs = [gillespie(t_max, Y0) for _ in range(5)] #Lo mismo que antes.
 
-# -------------------------------
-# Gráficas
-# -------------------------------
-fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True)
+#Primero, graficamos la solución anterior para comparar.
+fig, ax = plt.subplots(1, 3, figsize=(12, 4))
+for a in ax:
+    a.set_xlabel("t(días)")
+    
+ax[0].set_ylabel("U(N)")
+ax[1].set_ylabel("Np(N)")
+ax[2].set_ylabel("Pu(N)")
 
-# (a) determinista
-axes[0].plot(t_vals, U_det, label="U determinista")
-axes[0].plot(t_vals, Np_det, label="Np determinista")
-axes[0].plot(t_vals, Pu_det, label="Pu determinista")
-axes[0].set_ylabel("Cantidad")
-axes[0].set_title("2.a Sistema determinista")
-axes[0].legend()
+# Graficar la solución anterior para comparar
+ax[0].plot(t, U, color="k", label="U (a)", linestyle="--", zorder=5)
+ax[1].plot(t, Np, color="k", label="Np (a)", linestyle="--", zorder=5)
+ax[2].plot(t, Pu, color="k", label="Pu (a)", linestyle="--", zorder=5)
 
-# (b) SDE
-axes[1].plot(t_vals, U_det, "k--", alpha=0.5)
-axes[1].plot(t_vals, Np_det, "k--", alpha=0.5)
-axes[1].plot(t_vals, Pu_det, "k--", alpha=0.5)
-for traj in trajectories_sde:
-    axes[1].plot(t_sde, traj[:,0], alpha=0.7)
-    axes[1].plot(t_sde, traj[:,1], alpha=0.7)
-    axes[1].plot(t_sde, traj[:,2], alpha=0.7)
-axes[1].set_ylabel("Cantidad")
-axes[1].set_title("2.b SDE - 5 trayectorias")
+# Ahora, sobre cada subplot se grafican las 5 trayectorias
+for tiempos_traj, especies_traj in gillespie_trajs:
+    ax[0].plot(tiempos_traj, especies_traj[:, 0], alpha=0.7)
+    ax[1].plot(tiempos_traj, especies_traj[:, 1], alpha=0.7)
+    ax[2].plot(tiempos_traj, especies_traj[:, 2], alpha=0.7)
 
-# (c) Gillespie
-axes[2].plot(t_vals, U_det, "k--", alpha=0.5)
-axes[2].plot(t_vals, Np_det, "k--", alpha=0.5)
-axes[2].plot(t_vals, Pu_det, "k--", alpha=0.5)
-for times, traj in gillespie_trajs:
-    axes[2].step(times, traj[:,0], alpha=0.7, where="post")
-    axes[2].step(times, traj[:,1], alpha=0.7, where="post")
-    axes[2].step(times, traj[:,2], alpha=0.7, where="post")
-axes[2].set_ylabel("Cantidad")
-axes[2].set_xlabel("Tiempo (días)")
-axes[2].set_title("2.c Gillespie - 5 trayectorias")
-
+ax[0].set_title("Uranio en función de t")
+ax[1].set_title("Neptunio en función de t")
+ax[2].set_title("Plutonio en función de t")
+ax[0].legend()
+ax[1].legend()
+ax[2].legend()
 plt.tight_layout()
-plt.show()
+plt.savefig("2.c.pdf")
