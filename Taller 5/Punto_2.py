@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
-
+from tqdm import tqdm
 # Parámetros
 A = 1000
 B = 20
@@ -87,7 +87,7 @@ def SDE_RK2(dt, steps, Y0): #Definimos nuestra función de Runge-Kutta estocást
     traj = np.zeros((steps, 3)) #Acá guardaremos la solución 
     traj[0] = Y0 #Ponemos la condición inicial en la solución
     Y = np.array(Y0, dtype=float) #Creamos el vector que se actualizará cada iteración
-    for i in range(1, steps):
+    for i in tqdm(range(1, steps)):
         U, Np, Pu = Y
         
         #De la definición de W y S, elegidos aleatoriamente cada iteración
@@ -96,7 +96,7 @@ def SDE_RK2(dt, steps, Y0): #Definimos nuestra función de Runge-Kutta estocást
 
         #Drift
         muU = A - lambda_U * U
-        muNp = lambda_U * U - lambda_Np * Np
+        muNp = lambda_U  U - lambda_Np * Np
         muPu = lambda_Np * Np - B * Pu
 
         #Volatilidad
@@ -105,9 +105,9 @@ def SDE_RK2(dt, steps, Y0): #Definimos nuestra función de Runge-Kutta estocást
         sigmaPu = np.sqrt(lambda_Np * Np + B * Pu)
 
         #K1
-        K1U = dt * muU + (W + S) * np.sqrt(dt) * sigmaU
-        K1Np = dt * muNp + (W + S) * np.sqrt(dt) * sigmaNp
-        K1Pu = dt * muPu + (W + S) * np.sqrt(dt) * sigmaPu
+        K1U = dt * muU + (W - S) * np.sqrt(dt) * sigmaU
+        K1Np = dt * muNp + (W - S) * np.sqrt(dt) * sigmaNp
+        K1Pu = dt * muPu + (W - S) * np.sqrt(dt) * sigmaPu
 
         #K2
         K2U = dt * (A - lambda_U * (U + K1U)) + (W + S) * np.sqrt(dt) * sigmaU
@@ -119,7 +119,7 @@ def SDE_RK2(dt, steps, Y0): #Definimos nuestra función de Runge-Kutta estocást
         traj[i] = Y
     return traj #Retornamos la trayectoria
 
-dt = 0.003
+dt = 0.03
 steps = int(t_max / dt)
 t_sde = np.linspace(0, t_max, steps)
 trajectories_sde = [SDE_RK2(dt, steps, Y0) for _ in range(5)] #5 trayectorias
@@ -146,7 +146,7 @@ ax[0].legend()
 ax[1].legend()
 ax[2].legend()
 plt.tight_layout()
-#plt.savefig("2.b.pdf")
+plt.savefig("2.b.pdf")
 
 
 # -------------------------------
