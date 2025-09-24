@@ -182,7 +182,7 @@ fig_ruido.colorbar(im5, ax=axes_ruido[1][2], fraction=0.046, pad=0.04)
 
 plt.suptitle("Comparación de patrón de escamas Pez Globo para diferentes niveles de ruido", fontsize=14)
 plt.tight_layout()
-plt.savefig("Mas ruido, menor cantidad de grupos aislados.png")
+plt.savefig("2_Mas ruido, menor cantidad de grupos aislados.png")
 
 # Filas = u o v. Columnas = valor de activación
 fig_alpha, axes_alpha = plt.subplots(2, 3, figsize=(15, 5))
@@ -216,7 +216,7 @@ fig_alpha.colorbar(im11, ax=axes_alpha[1][2], fraction=0.046, pad=0.04)
 
 plt.suptitle("Comparación de patrón de escamas Pez Globo para diferentes activaciones", fontsize=14)
 plt.tight_layout()
-plt.savefig("Menor activacion, mayor resolucion.png")
+plt.savefig("2_Menor activacion, mayor resolucion.png")
 
 # Filas = u o v. Puntos del Cheetah
 fig_puntos, axes_puntos = plt.subplots(2, 1, figsize=(15, 5))
@@ -231,7 +231,7 @@ fig_puntos.colorbar(im13, ax=axes_puntos[1], fraction=0.046, pad=0.04)
 
 plt.suptitle("Puntos en el pelaje del Cheetah", fontsize=14)
 plt.tight_layout()
-plt.savefig("Cambio en F y G, nuevo patron (puntos felinos).png")
+plt.savefig("2_Cambio en F y G, nuevo patron (puntos felinos).png")
 
 # Filas = u o v. Rayas de la cebra
 fig_rayas, axes_rayas = plt.subplots(2, 1, figsize=(15, 5))
@@ -246,4 +246,4 @@ fig_rayas.colorbar(im15, ax=axes_rayas[1], fraction=0.046, pad=0.04)
 
 plt.suptitle("Rayas en el pelaje de la cebra", fontsize=14)
 plt.tight_layout()
-plt.savefig("Cambio en F y G + constantes, nuevo patron (rayas de cebra).png")
+plt.savefig("2_Cambio en F y G + constantes, nuevo patron (rayas de cebra).png")
