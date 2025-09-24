@@ -182,7 +182,7 @@ fig_ruido.colorbar(im5, ax=axes_ruido[1][2], fraction=0.046, pad=0.04)
 
 plt.suptitle("Comparación de patrón de escamas Pez Globo para diferentes niveles de ruido", fontsize=14)
 plt.tight_layout()
-plt.savefig("Mas ruido, mas grupos individuales.png")
+plt.savefig("Mas ruido, menor cantidad de grupos aislados.png")
 
 # Filas = u o v. Columnas = valor de activación
 fig_alpha, axes_alpha = plt.subplots(2, 3, figsize=(15, 5))
