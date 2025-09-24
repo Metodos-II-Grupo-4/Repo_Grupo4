@@ -83,46 +83,71 @@ plt.savefig("2.a.pdf")
 # -------------------------------
 # 2.b Ecuación diferencial estocástica
 # -------------------------------
-def sde_rk2(dt, steps, Y0):
-    Y = np.array(Y0, dtype=float)
-    traj = np.zeros((steps, 3))
-    traj[0] = Y
+def SDE_RK2(dt, steps, Y0): #Definimos nuestra función de Runge-Kutta estocástico orden 2.
+    traj = np.zeros((steps, 3)) #Acá guardaremos la solución 
+    traj[0] = Y0 #Ponemos la condición inicial en la solución
+    Y = np.array(Y0, dtype=float) #Creamos el vector que se actualizará cada iteración
     for i in range(1, steps):
         U, Np, Pu = Y
+        
+        #De la definición de W y S, elegidos aleatoriamente cada iteración
+        W = np.random.normal()
+        S = np.random.choice([-1, 1])
 
-        # Drift terms
+        #Drift
         muU = A - lambda_U * U
         muNp = lambda_U * U - lambda_Np * Np
         muPu = lambda_Np * Np - B * Pu
 
-        # Volatility terms
-        sigmaU = np.sqrt(abs(A + lambda_U * U))
-        sigmaNp = np.sqrt(abs(lambda_U * U + lambda_Np * Np))
-        sigmaPu = np.sqrt(abs(lambda_Np * Np + B * Pu))
+        #Volatilidad
+        sigmaU = np.sqrt(A + lambda_U * U)
+        sigmaNp = np.sqrt(lambda_U * U + lambda_Np * Np)
+        sigmaPu = np.sqrt(lambda_Np * Np + B * Pu)
 
-        W = np.random.normal()
-        S = np.random.choice([-1, 1])
-
-        # K1
+        #K1
         K1U = dt * muU + (W + S) * np.sqrt(dt) * sigmaU
         K1Np = dt * muNp + (W + S) * np.sqrt(dt) * sigmaNp
         K1Pu = dt * muPu + (W + S) * np.sqrt(dt) * sigmaPu
 
-        # K2
+        #K2
         K2U = dt * (A - lambda_U * (U + K1U)) + (W + S) * np.sqrt(dt) * sigmaU
         K2Np = dt * (lambda_U * (U + K1U) - lambda_Np * (Np + K1Np)) + (W + S) * np.sqrt(dt) * sigmaNp
         K2Pu = dt * (lambda_Np * (Np + K1Np) - B * (Pu + K1Pu)) + (W + S) * np.sqrt(dt) * sigmaPu
 
-        # Update
+        #Actualizamos el vector y añadimos a la trayectoria del sistema.
         Y = Y + 0.5 * np.array([K1U + K2U, K1Np + K2Np, K1Pu + K2Pu])
         traj[i] = Y
-    return traj
+    return traj #Retornamos la trayectoria
 
-dt = 0.01
+dt = 0.003
 steps = int(t_max / dt)
 t_sde = np.linspace(0, t_max, steps)
+trajectories_sde = [SDE_RK2(dt, steps, Y0) for _ in range(5)] #5 trayectorias
 
-trajectories_sde = [sde_rk2(dt, steps, Y0) for _ in range(5)]
+#Primero, graficamos la solución anterior para comparar.
+fig, ax = plt.subplots(1,3, figsize=(12,4))
+for a in ax:
+    a.set_xlabel("t(días)")
+ax[0].set_ylabel("U(N)")
+ax[1].set_ylabel("Np(N)")
+ax[2].set_ylabel("Pu(N)")
+ax[0].plot(t, U, color="k", label="U (a)", linestyle="--", zorder=5)
+ax[1].plot(t, Np, color="k", label="Np (a)", linestyle="--", zorder=5)
+ax[2].plot(t, Pu, color="k", label="Pu (a)", linestyle="--", zorder=5)
+#Ahora si, sobre cada subplot se grafican las 5 trayectorias.
+for traj in trajectories_sde:
+    ax[0].plot(t_sde, traj[:,0], alpha=0.7)
+    ax[1].plot(t_sde, traj[:,1], alpha=0.7)
+    ax[2].plot(t_sde, traj[:,2], alpha=0.7)
+ax[0].set_title("Uranio en función de t")
+ax[1].set_title("Neptunio en función de t")
+ax[2].set_title("Plutonio en función de t")
+ax[0].legend()
+ax[1].legend()
+ax[2].legend()
+plt.tight_layout()
+plt.savefig("2.b.pdf")
+
 
 # -------------------------------
 # 2.c Simulación exacta (Gillespie)
