@@ -1,0 +1,6 @@
+La probabilidad por Runge-Kutta orden 2 es (22.3+-1.3163244280951412)%
+La probabilidad por Gillespie es (17.599999999999998+-1.2042591083317578)%
+Con un dt de 0.001 (lo mostrado arriba) o de 0.003 (P=(15.3+-1.1)%), la probabilidad con RK queda en un rango muy parecido a la de Gillespie. La probabilidad de Gillespie es estable, pues solo depende de t_max. 
+Sin embargo, la probabilidad de RK cambia mucho de acuerdo al dt usado. Con dt=0.01, se consiguio una probabilidad  (11.6+-1.1)%. Haciendo dt = 0.03, se consiguio una probabilidad (5.3+-0.7)%. 
+Es decir, en el limite dt--->0, Range Kutta debe converger a una probabilidad considerablemente mayor que Gillespie. Sin embargo, no se hizo la simulacion en este script porque demoraria una eternidad. 
+De hecho, correr las simulaciones RK con el menor dt aca requirio de 12 minutos. Habria que simular por más si se quiere ver otra probabilidad  para RK en otro orden de magnitud.Ese dt menor fue dt=0.0003, para el cual se obtuvo una P(RK) = (29.9+-1.4)%En conclusion, la probabilidad P(Pu >= 80) es estable para el metodo estocastico de Gillespie, mas no para el de SRK2.
