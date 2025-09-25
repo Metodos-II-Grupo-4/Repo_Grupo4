@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
 
-N = 500
+N = 150
 J = 1
 beta = 1/2
 epocas = 2000000
@@ -23,6 +23,10 @@ def Energia_total(spins):
     for j in range(Nloc):
       E += -J * spins[i,j] * Vecinos_cercanos_sum(spins, i, j)
   return E/2
+
+# Guardamos el estado inicial
+snaps = {}
+snaps[0] = spins.copy() 
 
 E = Energia_total(spins)
 M = np.sum(spins)
@@ -47,15 +51,32 @@ for epoca in range(epocas):
   energias_normalizadas[epoca] = E/(4*N**2)
   magnetizaciones_normalizadas[epoca] = M/(N**2)
 
-plt.figure(figsize=(8,5))
-plt.plot(np.arange(epocas), energias_normalizadas, label="Energía normalizada", color="k")
-plt.plot(np.arange(epocas), magnetizaciones_normalizadas, label="Magnetización por espín", color="red")
-plt.xlabel("Epocas")
-plt.ylabel("Valor normalizado")
-plt.title(f"Ising Metropolis (N={N}, β={beta}, pasos={epocas:,})")
-plt.legend()
+snaps[1] = spins.copy()  #Guardamos estado final
+
+# Creamos la figura con 3 subplots
+fig, axes = plt.subplots(1, 3, figsize=(18,5))
+
+# 1) Evolución de energía y magnetización
+axes[1].plot(np.arange(epocas), energias_normalizadas, label="Energía normalizada", color="k", lw=0.8)
+axes[1].plot(np.arange(epocas), magnetizaciones_normalizadas, label="Magnetización por espín", color="red", lw=0.8)
+axes[1].set_xlabel("Épocas")
+axes[1].set_ylabel("Valor normalizado")
+axes[1].set_title(f"Energía y Magnetización")
+axes[1].legend()
+
+# 2) Espines antes
+axes[0].imshow(snaps[0], cmap="coolwarm", vmin=-1, vmax=1)
+axes[0].set_title("Antes")
+axes[0].axis("off")
+
+# 3) Espines después
+axes[2].imshow(snaps[1], cmap="coolwarm", vmin=-1, vmax=1)
+axes[2].set_title("Después")
+axes[2].axis("off")
+
 plt.tight_layout()
 plt.savefig("1.a.pdf")
+plt.close()
 
 def tamano_promedio_dominios(spins):
     N = spins.shape[0]
