@@ -102,7 +102,7 @@ def tamano_promedio_dominios(spins):
     return np.mean(sizes)
 
 promedio_spins = tamano_promedio_dominios(spins)
-np.savetxt("BONO.1.a.txt", promedio_spins)
+#np.savetxt("BONO.1.a.txt", promedio_spins)
 
 #1b
 @njit
