@@ -140,7 +140,7 @@ for beta in betas:
     for paso in range(1, Medicion+1):
         sweep_metropolis(spins, beta, J)
         if paso % int_muestreo == 0:
-            muestras_E.append(Energia_total(spins, J))
+            muestras_E.append(Energia_total(spins))
 
     # Mismo algoritmo que antes, solo cambiamos el observable
     muestras_E = np.array(muestras_E)
