@@ -18,8 +18,10 @@ print("Usando ffmpeg en:", ffmpeg_path) # Confirma en consola qué ffmpeg se usa
 alpha = 0.1
 x_min, x_max = -20.0, 20.0
 N = 1001  # Número de nodos espaciales
-dt_init = 1e-5  # dt inicial
+dt_init = 1e-6  # dt inicial
 dt_out = 0.05  # cada cuánto guardar frames para animación/observables
+
+dx = (x_max-x_min)/(N-1)
 
 # --------- Dominio 1D ----------
 grid = CartesianGrid([(x_min, x_max)], shape=(N,)) # Crea una malla cartesiana 1D con N puntos en [x_min, x_max]
@@ -168,7 +170,7 @@ def simulate_schrodinger(potential, potential_name, t_final, name):
 def V_harmonic(x):
     return (x**2)/50
 
-simulate_schrodinger(V_harmonic, "Oscilador armónico", 50.0, "1.a")
+simulate_schrodinger(V_harmonic, "Oscilador armónico", 150.0, "1.a")
 
 # 1.b Oscilador cuártico
 def V_quartic(x):
@@ -180,4 +182,4 @@ simulate_schrodinger(V_quartic, "Oscilador cuártico", 50.0, "1.b")
 def V_hat(x):
     return ((x**4)/100 - (x**2))/50
 
-simulate_schrodinger(V_hat, "Potencial sombrero", 50.0, "1.c")
+simulate_schrodinger(V_hat, "Potencial sombrero", 150.0, "1.c")
