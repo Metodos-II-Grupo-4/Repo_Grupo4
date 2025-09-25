@@ -85,79 +85,44 @@ np.savetxt("BONO.1.a.txt", promedio_spins)
 
 #1b
 N = 40
-betas = np.concatenate([
-    np.linspace(0.05, 0.30, 6, endpoint=False),
-    np.linspace(0.30, 0.60, 11, endpoint=False),  # menos puntos
-    np.linspace(0.60, 0.95, 4)
-])
+J = 1.0
+betas = np.linspace(0.05, 0.95, 90)
+Equilibrio = 500 # Sweeps para equilibrar
+Medicion = 1500 # Sweeps para medir
+int_muestreo = 20 #Intervalo de muestreo
+rng = np.random.default_rng(1234)
 
-Equlibrio   = 100   
-Medicion    = 300   
-int_muestro = 30 
+# Simulación para varios β
+Cv_list = []
+spins = rng.choice([-1, 1], size=(N, N))
 
-@njit
-def sweep_metropolis(spins, beta, J):
-    N = spins.shape[0]
-    for _ in range(N*N):
-        i = np.random.randint(0, N)
-        j = np.random.randint(0, N)
-        s = spins[i, j]
-        Snn = (spins[(i+1)%N, j] + spins[(i-1)%N, j] +
-               spins[i, (j+1)%N] + spins[i, (j-1)%N])
-        dH = 2.0 * J * s * Snn
-        if dH <= 0.0 or np.random.random() < np.exp(-beta*dH):
-            spins[i, j] = -s
-
-@njit
-def energia_norm_hamilton(spins, J):
-    N = spins.shape[0]
-    E = 0.0
-    for i in range(N):
-        for j in range(N):
-            E -= J * spins[i,j] * (spins[i,(j+1)%N] + spins[(i+1)%N,j])  # enlace una vez
-    return E / (2.0 * N * N)  # equivale a ε/(4N^2)
-
-def run_beta(spins, beta, J, aleatorio, Equlibrio_local=1000, Medicion_local=2000, int_muestro_local=10):
-    for _ in range(Equlibrio_local):
+for beta in betas:
+    # Equilibrar
+    for _ in range(Equilibrio):
         sweep_metropolis(spins, beta, J)
 
+    # Medición
     muestras_E = []
-    for e in range(1, Medicion_local+1):
+    for paso in range(1, Medicion+1):
         sweep_metropolis(spins, beta, J)
-        if e % int_muestro_local == 0:
-            muestras_E.append(energia_norm_hamilton(spins, J))
+        if paso % int_muestreo == 0:
+            muestras_E.append(energia_total(spins, J))
 
-    muestras_E = np.asarray(muestras_E, dtype=float)
+    # Mismo algoritmo que antes, solo cambiamos el observable
+    muestras_E = np.array(muestras_E)
     E_mean = muestras_E.mean()
     E2_mean = (muestras_E**2).mean()
-    Cv = (beta**2) * (N**2) * (E2_mean - E_mean**2)
-    return Cv, E_mean, spins
-
-Cv_list = []
-Emean_list = []
-for i, beta in enumerate(betas):
-    equil = Equlibrio if i > 0 else 2 * Equlibrio  
-    Cv, Emean, spins = run_beta(
-        spins, beta, J, aleatorio,
-        Equlibrio_local=equil,
-        Medicion_local=Medicion,
-        int_muestro_local=int_muestro
-    )
+    Cv = (beta**2/N**2)* (E2_mean - E_mean**2)
     Cv_list.append(Cv)
-    Emean_list.append(Emean)
-    #print(f"β={beta:.3f}  Cv={Cv:.4f}  <E>={Emean:.4f}")
 
-Cv = np.array(Cv_list)
-Emean = np.array(Emean_list)
-
+# Gráfico
 beta_c = 0.5*np.log(1+np.sqrt(2))   
 plt.figure(figsize=(6,4))
-plt.plot(betas, Cv, lw=2, color='k')
+plt.plot(betas, Cv_list, lw=2, color='k')
 plt.axvline(beta_c, color='r', linestyle='-', alpha=0.7, label='β crítico (teoría)')
 plt.xlabel("Thermodynamic β ")
-plt.ylabel("Specific Heat from simulation ")
+plt.ylabel("Specific Heat from simulation")
 plt.grid(alpha=0.3)
 plt.legend()
 plt.tight_layout()
 plt.savefig("1.b.pdf", bbox_inches="tight")
-plt.close()
