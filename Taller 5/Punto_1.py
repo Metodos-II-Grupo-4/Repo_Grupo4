@@ -105,6 +105,19 @@ promedio_spins = tamano_promedio_dominios(spins)
 np.savetxt("BONO.1.a.txt", promedio_spins)
 
 #1b
+@njit
+def sweep_metropolis(spins, beta, J):
+    N = spins.shape[0]
+    for _ in range(N*N):
+        i = np.random.randint(0, N)
+        j = np.random.randint(0, N)
+        s = spins[i, j]
+        Snn = (spins[(i+1)%N, j] + spins[(i-1)%N, j] +
+               spins[i, (j+1)%N] + spins[i, (j-1)%N])
+        dH = 2.0 * J * s * Snn
+        if dH <= 0.0 or np.random.random() < np.exp(-beta*dH):
+            spins[i, j] = -s
+
 N = 40
 J = 1.0
 betas = np.linspace(0.05, 0.95, 90)
@@ -127,7 +140,7 @@ for beta in betas:
     for paso in range(1, Medicion+1):
         sweep_metropolis(spins, beta, J)
         if paso % int_muestreo == 0:
-            muestras_E.append(energia_total(spins, J))
+            muestras_E.append(Energia_total(spins, J))
 
     # Mismo algoritmo que antes, solo cambiamos el observable
     muestras_E = np.array(muestras_E)
