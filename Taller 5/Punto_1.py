@@ -2,118 +2,60 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numba import njit
 
-def init_spins(N, seed=None):
-    aleatorio = np.random.default_rng(seed)
-    spins = aleatorio.choice([-1, 1], size=(N, N))
-    return spins, aleatorio
+N = 500
+J = 1
+beta = 1/2
+epocas = 2000000
+seed = 42
+spins = np.random.choice([-1, 1], size=(N, N))
+
+rng = np.random.default_rng(seed) #Retorna un generador random con la semilla de arriba.
 
 def Vecinos_cercanos_sum(spins, i, j):
     N = spins.shape[0]
     return (spins[(i+1) % N, j] + spins[(i-1) % N, j] +
             spins[i, (j+1) % N] + spins[i, (j-1) % N])
 
-def Energia_local(spins, J):
-    # epsilon_0 = sum_{i,j} ε_ij con 4 vecinos (cuenta cada enlace dos veces)
-    up    = np.roll(spins, -1, axis=0)
-    down  = np.roll(spins,  1, axis=0)
-    left  = np.roll(spins,  1, axis=1)
-    right = np.roll(spins, -1, axis=1)
-    epsilon = -J * spins * (up + down + left + right)
-    return epsilon.sum()
+def Energia_total(spins):
+  E = 0
+  Nloc = spins.shape[0]
+  for i in range(Nloc):
+    for j in range(Nloc):
+      E += -J * spins[i,j] * Vecinos_cercanos_sum(spins, i, j)
+  return E/2
 
-def Metropolis(spins, beta, J, aleatorio):
-    N = spins.shape[0]
-    i = aleatorio.integers(0, N)
-    j = aleatorio.integers(0, N)
-    s = spins[i, j]
-    Snn = Vecinos_cercanos_sum(spins, i, j)
+E = Energia_total(spins)
+M = np.sum(spins)
+#Ahora si, Metropolis.
+aceptados = 0
+energias_normalizadas = np.zeros(epocas)
+magnetizaciones_normalizadas = np.zeros(epocas)
+for epoca in range(epocas):
+#Paso 1. Perturbar el sitema, es decir, cambiar de sentido un solo espín en una posición i, j elegida aleatoriamente.
+  i = rng.integers(N)
+  j = rng.integers(N)
+#Paso 2. Calcular la nueva energía con ese espín perturbado Enew, y calcular la diferencia de energía deltaE
+  deltaE = 2 * J * spins[i,j] * Vecinos_cercanos_sum(spins, i, j)
+  s = spins[i, j]
+#Paso 3. Si deltaE <= 0, acepta la nueva configuración.
+#Paso 4. De lo contrario, lanzar un número aleatorio u, uniforme de 0 a 1, y comparar Si u <= exp(−\beta deltaE), aceptar la nueva configuración. De lo contrario, dejar la configuración vieja.
+  if deltaE <= 0 or rng.random() < np.exp(-beta * deltaE):
+    spins[i, j] = -s
+    E += deltaE
+    M += -2*s
+    aceptados += 1
+  energias_normalizadas[epoca] = E/(4*N**2)
+  magnetizaciones_normalizadas[epoca] = M/(N**2)
 
-    dH  = 2.0 * J * s * Snn          # para aceptación
-    dEp = 4.0 * J * s * Snn          # para actualizar E(t) de tus notas
-    dm  = -2 * s                     # cambio de magnetización
-
-    accepted = False
-    if dH <= 0.0 or aleatorio.random() < np.exp(-beta * dH):
-        spins[i, j] = -s
-        accepted = True
-        return True, dEp, dm
-    else:
-        return False, 0.0, 0.0
-
-# Parámetros
-N = 50
-kB = 1
-J = 1
-beta = 1/2
-epocas = 100
-norm_M = 'per_spin'
-seed = 42
-
-# Estado inicial y normalización 
-spins, aleatorio = init_spins(N, seed)
-eps_total  = Energia_local(spins, J) #suma de energías locales
-mag_sum    = spins.sum()              
-
-E = np.empty(epocas + 1, dtype=float)
-M = np.empty(epocas + 1, dtype=float)
-
-E[0] = eps_total / (4.0 * N * N)
-M[0] = (mag_sum / (N * N)) if norm_M == 'per_spin' else (mag_sum / N)
-
-# Simulación por épocas 
-intentos_por_epoca = N * N
-accepts = 0
-
-# Épocas para snapshots tipo "Antes/Durante/Después"
-snapshot_epochs = {0, 100, epocas}
-snaps = {}
-if 0 in snapshot_epochs:
-    snaps[0] = spins.copy()
-
-for e in range(1, epocas + 1):
-    for _ in range(intentos_por_epoca):
-        ok, dEp, dm = Metropolis(spins, beta, J, aleatorio)
-        if ok:
-            accepts  += 1
-            eps_total += dEp
-            mag_sum   += dm
-
-    # fin de la época 
-    E[e] = eps_total / (4.0 * N * N)
-    M[e] = (mag_sum / (N * N)) if norm_M == 'per_spin' else (mag_sum / N)
-    if e in snapshot_epochs:
-        snaps[e] = spins.copy()
-
-acc_rate = accepts / (epocas * intentos_por_epoca)
-
-ep = np.arange(len(E))
-
-fig = plt.figure(figsize=(12,4))
-
-# Recuadro del medio: Evolución de E y M
-ax = plt.subplot(1,3,2)
-ax.plot(ep, E, lw=2, color="black", label="Energía")
-ax.plot(ep, M, lw=2, color="red",   label="Magnetización")
-ax.set_xlabel("Épocas")
-ax.set_ylim(-1.05, 1.05)
-ax.grid(True, alpha=0.3)
-ax.legend()
-
-#Primer recuadro: “Antes”
-axL = plt.subplot(1,3,1)
-axL.imshow(snaps[min(snaps.keys())], cmap="coolwarm", vmin=-1, vmax=1)
-axL.set_title("Antes")
-axL.axis("off")
-
-#Tercer recuadro: “Después”
-axR = plt.subplot(1,3,3)
-axR.imshow(snaps[max(snaps.keys())], cmap="coolwarm", vmin=-1, vmax=1)
-axR.set_title("Después")
-axR.axis("off")
-
+plt.figure(figsize=(8,5))
+plt.plot(np.arange(epocas), energias_normalizadas, label="Energía normalizada", color="k")
+plt.plot(np.arange(epocas), magnetizaciones_normalizadas, label="Magnetización por espín", color="red")
+plt.xlabel("Epocas")
+plt.ylabel("Valor normalizado")
+plt.title(f"Ising Metropolis (N={N}, β={beta}, pasos={epocas:,})")
+plt.legend()
 plt.tight_layout()
-plt.savefig("1.a.pdf", bbox_inches="tight")
-plt.close(fig)
+plt.savefig("1.a.pdf")
 
 def tamano_promedio_dominios(spins):
     N = spins.shape[0]
@@ -138,7 +80,8 @@ def tamano_promedio_dominios(spins):
             sizes.append(sz)
     return np.mean(sizes)
 
-tamano_promedio_dominios(spins)
+promedio_spins = tamano_promedio_dominios(spins)
+np.savetxt("BONO.1.a.txt", promedio_spins)
 
 #1b
 N = 40
